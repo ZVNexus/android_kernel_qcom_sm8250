@@ -884,7 +884,7 @@ static int report_gesture_key(struct input_dev *dev, char keycode)
 		break;
 	case 0xcc: // double click
 		if (atomic_read(&gsx_gesture->dclick)==1) {
-			input_switch_key(dev, KEY_POWER);
+			input_switch_key(dev, KEY_WAKEUP);
 			return 1;
 		}
 		break;

@@ -473,7 +473,7 @@ static ssize_t goodix_ts_chip_info_show(struct device  *dev,
 		return 0;
 	// For I2C power
 	if(atomic_read(&core_data->suspended) == 1) {
-		input_switch_key(core_data->input_dev, KEY_POWER);
+		input_switch_key(core_data->input_dev, KEY_WAKEUP);
 		msleep(100);
 	}
 
@@ -529,7 +529,7 @@ static ssize_t goodix_ts_read_cfg_show(struct device *dev,
 		return -EINVAL;
 	// For I2C power
 	if(atomic_read(&core_data->suspended) == 1) {
-		input_switch_key(core_data->input_dev, KEY_POWER);
+		input_switch_key(core_data->input_dev, KEY_WAKEUP);
 		msleep(100);
 	}
 
@@ -777,7 +777,7 @@ static ssize_t goodix_ts_reg_rw_show(struct device *dev,
 	
 	// For I2C power
 	if(atomic_read(&core_data->suspended) == 1) {
-		input_switch_key(core_data->input_dev, KEY_POWER);
+		input_switch_key(core_data->input_dev, KEY_WAKEUP);
 		msleep(100);
 	}
 
@@ -819,7 +819,7 @@ static ssize_t goodix_ts_reg_rw_store(struct device *dev,
 	
 	// For I2C power
 	if(atomic_read(&core_data->suspended) == 1) {
-		input_switch_key(core_data->input_dev, KEY_POWER);
+		input_switch_key(core_data->input_dev, KEY_WAKEUP);
 		msleep(100);
 	}
 
@@ -3449,7 +3449,7 @@ static int goodix_ts_input_dev_config(struct goodix_ts_core *core_data)
 #endif
 #endif
 
-	input_set_capability(input_dev, EV_KEY, KEY_POWER);
+	input_set_capability(input_dev, EV_KEY, KEY_WAKEUP);
 	input_set_capability(input_dev, EV_KEY, KEY_UP);
 
 // ASUS_BSP +++ Touch
