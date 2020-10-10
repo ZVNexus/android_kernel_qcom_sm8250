@@ -1083,7 +1083,7 @@ static void wake_up_work_func(struct work_struct *work)
 	tcpc_typec_enter_lpm_again(tcpc_dev);
 
 	mutex_unlock(&tcpc_dev->typec_lock);
-	__pm_relax(&tcpc_dev->wakeup_wake_lock);
+	__pm_relax(tcpc_dev->wakeup_wake_lock);
 }
 
 static enum alarmtimer_restart
@@ -1092,7 +1092,7 @@ static enum alarmtimer_restart
 	struct tcpc_device *tcpc_dev =
 		container_of(alarm, struct tcpc_device, wake_up_timer);
 
-	__pm_wakeup_event(&tcpc_dev->wakeup_wake_lock, 1000);
+	__pm_wakeup_event(tcpc_dev->wakeup_wake_lock, 1000);
 	schedule_delayed_work(&tcpc_dev->wake_up_work, 0);
 	return ALARMTIMER_NORESTART;
 }
@@ -1476,7 +1476,7 @@ int tcpci_timer_init(struct tcpc_device *tcpc_dev)
 					CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		tcpc_dev->tcpc_timer[i].function = tcpc_timer_call[i];
 	}
-	wakeup_source_init(&tcpc_dev->wakeup_wake_lock,
+	tcpc_dev->wakeup_wake_lock = wakeup_source_register(NULL,
 		"wakeup_wake_lock");
 	INIT_DELAYED_WORK(&tcpc_dev->wake_up_work, wake_up_work_func);
 	alarm_init(&tcpc_dev->wake_up_timer, ALARM_REALTIME, tcpc_timer_wakeup);

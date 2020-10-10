@@ -446,7 +446,7 @@ struct icm_sensor {
 	struct icm_chip_config cfg;
 	struct axis_data axis;
 	struct icm_init_status init_status;
-	struct wakeup_source icm206xx_wakeup_source;
+	struct wakeup_source *icm206xx_wakeup_source;
 	u32 deviceid;
 	u32 gyro_poll_ms;
 	u32 accel_poll_ms;

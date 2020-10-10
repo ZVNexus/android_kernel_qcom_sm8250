@@ -34,7 +34,7 @@ extern int lid2_status;
 extern bool g_Charger_mode;
 
 #define WAKELOCK_HOLD_TIME 200 /* in ms */
-static struct wakeup_source ene_wakelock;
+static struct wakeup_source *ene_wakelock;
 
 static int i2c_read_bytes(struct i2c_client *client, char *write_buf, int writelen, char *read_buf, int readlen)
 {
@@ -1156,7 +1156,7 @@ static ssize_t led2_on_store(struct device *dev, struct device_attribute *attr, 
 	u32 val;
 	ssize_t ret;
 	int err = 0;
-	__pm_wakeup_event(&ene_wakelock, WAKELOCK_HOLD_TIME);
+	__pm_wakeup_event(ene_wakelock, WAKELOCK_HOLD_TIME);
 
 	ret = kstrtou32(buf, 10, &val);
 	if (ret)
@@ -2043,7 +2043,7 @@ if (platform_data->aura_front_en != -ENOENT )
 
 // Init wake lock
 	wake_lock_init(&platform_data->aura_wake_lock, WAKE_LOCK_SUSPEND, "aura_wake_lock");
-	wakeup_source_init(&ene_wakelock, "ene_wakelock");
+	ene_wakelock = wakeup_source_register(NULL, "ene_wakelock");
 
 //#ifdef ASUS_FTM
 #if 0

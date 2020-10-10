@@ -34,7 +34,7 @@
 
 /* ASUS_BSP +++ For headset hook key  working in system suspend */
 #include <linux/ktime.h>
-static struct wakeup_source hook_key_wake_lock;
+static struct wakeup_source *hook_key_wake_lock;
 /* ASUS_BSP --- */
 
 #define FixedType
@@ -1097,7 +1097,7 @@ static irqreturn_t rt5683_hs_btn_irq_handler(int irq, void *dev_id)
 	}
 
 	/* ASUS_BSP +++ For headset hook key  working in system suspend */
-	__pm_wakeup_event(&hook_key_wake_lock, 3500);
+	__pm_wakeup_event(hook_key_wake_lock, 3500);
 	if (rt5683->is_suspended == 1)	{
 		pr_err("%s:after Wakelock 3 sec for hook_key and delay headset delay work(0.5s)\n",__func__);
 		mod_delayed_work(system_power_efficient_wq,

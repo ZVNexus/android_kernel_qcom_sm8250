@@ -323,7 +323,7 @@ static int g_health_upgrade_end_level = BAT_HEALTH_END_LEVEL;
 static int g_health_upgrade_upgrade_time = BATTERY_HEALTH_UPGRADE_TIME;
 static int g_bat_health_avg;
 int g_health_work_start_level = BAT_HEALTH_START_LEVEL;
-struct wakeup_source bat_health_ws;
+struct wakeup_source *bat_health_ws;
 extern unsigned long asus_qpnp_rtc_read_time(void);
 extern bool g_smb5_probe_complete;
 
@@ -3481,7 +3481,7 @@ void battery_health_data_reset(void){
 	g_bat_health_data.end_time = 0;
 	g_bathealth_trigger = false;
 	g_last_bathealth_trigger = false;
-	__pm_relax(&bat_health_ws);
+	__pm_relax(bat_health_ws);
 }
 
 extern int batt_health_csc_backup(void);
@@ -3659,7 +3659,7 @@ static void update_battery_health(struct fg_dev *chip){
 	fg_gen4_get_prop_capacity(chip, &bat_capacity);
 
 	if(bat_capacity == g_health_upgrade_start_level && g_bat_health_data.start_time == 0){
-		__pm_stay_awake(&bat_health_ws);
+		__pm_stay_awake(bat_health_ws);
 		g_bathealth_trigger = true;
 		g_bat_health_data.start_time = asus_qpnp_rtc_read_time();
 	}
@@ -9055,7 +9055,7 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	//[---]ASUS_BSP battery safety upgrade
 
 	//ASUS_BS battery health upgrade +++
-	wakeup_source_init(&bat_health_ws, "bat_health_ws");
+	bat_health_ws = wakeup_source_register(NULL, "bat_health_ws");
 	battery_health_data_reset();
 	//Change the work to depend on VBUS rising or falling
 	//schedule_delayed_work(&battery_health_work, 300 * HZ); //battery_health_work

@@ -242,7 +242,7 @@ struct smb5 {
 struct smb_charger *smbchg_dev;  //global smb_charger
 struct gpio_control *global_gpio;  //global gpio_control
 struct timespec last_jeita_time;
-//struct wakeup_source asus_chg_ws;
+//struct wakeup_source *asus_chg_ws;
 bool asus_chg_ws_disable = false;
 bool boot_completed_flag = 0;
 int charger_limit_value = 70;
@@ -4573,7 +4573,7 @@ static int smb5_probe(struct platform_device *pdev)
 	chg->main_fcc_max = -EINVAL;
 	mutex_init(&chg->adc_lock);
 
-	//wakeup_source_init(&asus_chg_ws, "asus_chg_ws");
+	//asus_chg_ws = wakeup_source_register(NULL, "asus_chg_ws");
 	smbchg_dev = chg;		//ASUS : Add globe device struct +++
 	global_gpio = gpio_ctrl;	//ASUS : Add globe gpio control struct +++
 

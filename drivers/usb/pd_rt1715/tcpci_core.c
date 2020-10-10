@@ -508,9 +508,9 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 	/* If system support "WAKE_LOCK_IDLE",
 	 * please use it instead of "WAKE_LOCK_SUSPEND"
 	 */
-	wakeup_source_init(&tcpc->attach_wake_lock,
+	tcpc->attach_wake_lock = wakeup_source_register(NULL,
 		"tcpc_attach_wakelock");
-	wakeup_source_init(&tcpc->dettach_temp_wake_lock,
+	tcpc->dettach_temp_wake_lock = wakeup_source_register(NULL,
 		"tcpc_detach_wakelock");
 
 	tcpci_timer_init(tcpc);
@@ -884,8 +884,8 @@ void tcpc_device_unregister(struct device *dev, struct tcpc_device *tcpc)
 
 	tcpc_typec_deinit(tcpc);
 
-	wakeup_source_trash(&tcpc->dettach_temp_wake_lock);
-	wakeup_source_trash(&tcpc->attach_wake_lock);
+	wakeup_source_unregister(tcpc->dettach_temp_wake_lock);
+	wakeup_source_unregister(tcpc->attach_wake_lock);
 
 	device_unregister(&tcpc->dev);
 

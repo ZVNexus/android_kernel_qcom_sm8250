@@ -60,7 +60,7 @@ static struct hall_sensor_str {
 	int status;	
 	int enable; 
 	spinlock_t mHallSensorLock;
-	struct wakeup_source wake_src;
+	struct wakeup_source *wake_src;
 	struct input_dev *hall_indev;	
  	struct delayed_work hall_sensor_work;
 	//<ASUS-danielchan201500528>>>>>>>>>+
@@ -82,7 +82,7 @@ static irqreturn_t hall_sensor_interrupt_handler(int irq, void *dev_id)
 {
 	dbg("[ISR] hall_sensor_interrupt = %d\n",ASUS_HALL_SENSOR_IRQ);
 	queue_delayed_work(hall_sensor_wq, &hall_sensor_dev->hall_sensor_work, 0);
-	__pm_stay_awake(&hall_sensor_dev->wake_src);
+	__pm_stay_awake(hall_sensor_dev->wake_src);
 	return IRQ_HANDLED;
 }
 
@@ -124,7 +124,7 @@ static void debounce_hall_sensor_report_function(struct work_struct *dat)
 
         if(!hall_sensor_dev->enable){
             log("[ISR] [%s] hall sensor is disable!\n", DRIVER_NAME);
-            __pm_relax(&hall_sensor_dev->wake_src);
+            __pm_relax(hall_sensor_dev->wake_src);
             return;
         }
 		initial_status =hall_sensor_dev->status;
@@ -148,12 +148,12 @@ static void debounce_hall_sensor_report_function(struct work_struct *dat)
         if( (counter_trigger > 0) && (counter_trigger < (de_bounce/sleep_time))){
             log("[%s] SW_LID do not report to framework.\n", DRIVER_NAME);
             hall_sensor_dev->status = initial_status;
-            __pm_relax(&hall_sensor_dev->wake_src);
+            __pm_relax(hall_sensor_dev->wake_src);
             return;
 	    }
         input_report_switch(hall_sensor_dev->hall_indev, SW_LID, !hall_sensor_dev->status);
         input_sync(hall_sensor_dev->hall_indev);
-        __pm_relax(&hall_sensor_dev->wake_src);
+        __pm_relax(hall_sensor_dev->wake_src);
         printk("[hall_sensors][ISR] report value = %d\n", !hall_sensor_dev->status);
 
 }
@@ -304,7 +304,7 @@ static int init_data(void)
 		goto init_data_err;
 	}
 	spin_lock_init(&hall_sensor_dev->mHallSensorLock);
-	wakeup_source_init(&hall_sensor_dev->wake_src, "HallSensor_wake_lock");
+	hall_sensor_dev->wake_src = wakeup_source_register(NULL, "HallSensor_wake_lock");
 	
 	hall_sensor_dev->enable = 1;
 
@@ -555,7 +555,7 @@ static void __exit hall_sensor_exit(void)
 	gpio_free(ASUS_HALL_SENSOR_GPIO);	
 	kfree(hall_sensor_dev);
 	hall_sensor_dev=NULL;
-	wakeup_source_trash(&hall_sensor_dev->wake_src);
+	wakeup_source_unregister(hall_sensor_dev->wake_src);
 	platform_driver_unregister(&hall_sensor_driver);	
 	
 	

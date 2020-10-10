@@ -2766,7 +2766,7 @@ static void icm_deinit()
 			gpio_free((g_icm206xx_sensor->pdata).gpio_int);
 			l_init_status->gpio_inited = false;
 		}
-		wakeup_source_trash(&g_icm206xx_sensor->icm206xx_wakeup_source);
+		wakeup_source_unregister(g_icm206xx_sensor->icm206xx_wakeup_source);
 		devm_kfree(g_icm206xx_sensor->dev, g_icm206xx_sensor);
 		g_icm206xx_sensor = NULL;
 	}
@@ -2885,7 +2885,7 @@ static int icm_spi_probe(struct spi_device *pdev)
 	dev_set_drvdata(&pdev->dev, sensor);
 	g_icm206xx_sensor = sensor;
 	pdata = &sensor->pdata;
-	wakeup_source_init(&sensor->icm206xx_wakeup_source, "icm206xx_wakeup_source");
+	sensor->icm206xx_wakeup_source = wakeup_source_register(NULL, "icm206xx_wakeup_source");
 
 	if (pdev->dev.of_node) {
 		ret = icm_parse_dt(&pdev->dev, pdata);
@@ -3296,7 +3296,7 @@ static int icm_power_up(struct icm_sensor *sensor)
 	} else{
 		icm_errmsg("invalid irq");
 	}
-	__pm_stay_awake(&g_icm206xx_sensor->icm206xx_wakeup_source);
+	__pm_stay_awake(g_icm206xx_sensor->icm206xx_wakeup_source);
 exit:
 	return rc;
 }
@@ -3326,7 +3326,7 @@ static int icm_power_down(struct icm_sensor *sensor)
 	if (sensor->vdd) {
 		regulator_disable(sensor->vdd);
 	}
-	__pm_relax(&g_icm206xx_sensor->icm206xx_wakeup_source);
+	__pm_relax(g_icm206xx_sensor->icm206xx_wakeup_source);
 	return rc;
 }
 

@@ -188,7 +188,7 @@ char *chg_status_text[] = {
 	"Disable"
 };
 
-struct wakeup_source asus_chg_ws;
+struct wakeup_source *asus_chg_ws;
 static bool create_asus_chg_ws = false;
 extern bool asus_chg_ws_disable;
 
@@ -293,14 +293,14 @@ void asus_smblib_stay_awake(struct smb_charger *chg)
 
 	if (create_asus_chg_ws) {
 		CHG_DBG("ASUS set awake\n");
-		__pm_stay_awake(&asus_chg_ws);
+		__pm_stay_awake(asus_chg_ws);
 	} else {
 		CHG_DBG_E("ASUS set awake fail, asus_chg_ws not initial\n");
-		wakeup_source_init(&asus_chg_ws, "asus_chg_ws");
+		asus_chg_ws = wakeup_source_register(NULL, "asus_chg_ws");
 		create_asus_chg_ws = true;
 
 		CHG_DBG("ASUS set awake after asus_chg_ws initial\n");
-		__pm_stay_awake(&asus_chg_ws);
+		__pm_stay_awake(asus_chg_ws);
 	}
 }
 
@@ -311,7 +311,7 @@ void asus_smblib_relax(struct smb_charger *chg)
 
 	if (create_asus_chg_ws) {
 		CHG_DBG("ASUS set relax\n");
-		__pm_relax(&asus_chg_ws);
+		__pm_relax(asus_chg_ws);
 	} else {
 		CHG_DBG_E("ASUS set relax fail, asus_chg_ws not initial\n");
 	}
