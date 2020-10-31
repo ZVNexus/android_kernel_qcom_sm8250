@@ -1,0 +1,24 @@
+/*
+ * Copyright (c) 2020 Paranoid Android
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ */
+
+#include "dsi-panel-nt37800-amoled-dsc-fhd-plus-cmd.dtsi"
+#include "dsi-panel-samsung_amb655x_fhd_dsc.dtsi"
+#include "dsi-panel-samsung_ana6705_fhd_dsc.dtsi"
+#include "dsi-panel-samsung_ana6706_dsc.dtsi"
+#include "dsi-panel-samsung_dd305_fhd_dsc.dtsi"
+#include "dsi-panel-samsung_oneplus_dsc.dtsi"
+#include "dsi-panel-samsung_oneplus_dsc_2nd.dtsi"
+#include "dsi-panel-samsung_sofef00_m_video.dtsi"
+
+&sde_dsi {
+	qcom,dsi-default-panel = <&dsi_samsung_ana6706_dsc_cmd>;
+};
+
+&sde_dsi1 {
+	qcom,dsi-default-panel = <&dsi_samsung_ana6706_dsc_cmd_2nd>;
+};

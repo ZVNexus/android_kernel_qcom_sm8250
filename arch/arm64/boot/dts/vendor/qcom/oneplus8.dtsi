@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) 2020 Paranoid Android
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
+ */
+
+#include "oneplus8-display.dtsi"
+
+&cdsp_secure_heap {
+        reg = <0x0 0x92400000 0x0 0x4600000>;
+};
+
+&kona_mtp_batterydata {
+	#include "OP-fg-batterydata-4300mah.dtsi"
+	#include "OP-fg-batterydata-4320mah.dtsi"
+};
+
+&pil_adsp_mem {
+        reg = <0x0 0x8fe00000 0x0 0x2500000>;
+};
+
+&pil_spss_mem {
+        reg = <0x0 0x92300000 0x0 0x100000>;
+};
+
+&reserved_memory {
+	/* After cdsp_secure_heap we add a offset to ignore change address need reconfig */
+	ramoops: ramoops@0xA9800000 {
+		compatible = "ramoops";
+		reg = <0 0xA9800000 0 0x00400000>;
+		record-size = <0x40000>; //256x1024
+		console-size = <0x40000>;
+		ftrace-size = <0x40000>;
+		pmsg-size = <0x200000>;
+		devinfo-size = <0x01000>;
+		ecc-size = <0x0>;
+	};
+};

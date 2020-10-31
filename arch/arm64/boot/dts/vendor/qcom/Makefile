@@ -2,9 +2,11 @@
 
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 	dtbo-$(CONFIG_ARCH_KONA) += \
-		kona-mtp-overlay.dtbo
+		kona-mtp-overlay.dtbo \
+		oneplus8-overlay.dtbo
 
 kona-mtp-overlay.dtbo-base := kona-v2.1.dtb
+oneplus8-overlay.dtbo-base := kona-v2.1.dtb
 else
 dtb-$(CONFIG_ARCH_KONA) += \
 	kona-v2.1-mtp.dtb
