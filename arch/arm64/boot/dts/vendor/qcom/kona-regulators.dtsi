@@ -114,7 +114,7 @@
 			regulator-name = "pm8150_s5";
 			qcom,set = <RPMH_REGULATOR_SET_ALL>;
 			regulator-min-microvolt = <1824000>;
-			regulator-max-microvolt = <2040000>;
+			regulator-max-microvolt = <1900000>;
 			qcom,init-voltage = <1824000>;
 		};
 	};
@@ -780,7 +780,7 @@
 		BOB: pm8150a_bob: regulator-pm8150a-bob {
 			regulator-name = "pm8150a_bob";
 			qcom,set = <RPMH_REGULATOR_SET_ALL>;
-			regulator-min-microvolt = <3008000>;
+			regulator-min-microvolt = <2800000>;
 			regulator-max-microvolt = <3960000>;
 			qcom,init-voltage = <3312000>;
 			qcom,init-mode = <RPMH_REGULATOR_MODE_PASS>;
@@ -793,6 +793,15 @@
 			regulator-max-microvolt = <3960000>;
 			qcom,init-voltage = <3008000>;
 			qcom,init-mode = <RPMH_REGULATOR_MODE_AUTO>;
+		};
+		
+		BOB_L: pm8150l_bob: regulator-pm8150l-bob {
+			regulator-name = "pm8150l_bob";
+			qcom,set = <RPMH_REGULATOR_SET_ALL>;
+			regulator-min-microvolt = <3008000>;
+			regulator-max-microvolt = <4000000>;
+			qcom,init-voltage = <3312000>;
+			qcom,init-mode = <RPMH_REGULATOR_MODE_PASS>;
 		};
 	};
 

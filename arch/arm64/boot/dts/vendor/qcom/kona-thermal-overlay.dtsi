@@ -6,6 +6,7 @@
 
 &thermal_zones {
 	soc {
+		disable-thermal-zone;
 		cooling-maps {
 			soc_cpu4 {
 				trip = <&soc_trip>;
@@ -30,6 +31,7 @@
 	};
 
 	pm8150b-bcl-lvl0 {
+		disable-thermal-zone;
 		cooling-maps {
 			vbat_cpu4 {
 				trip = <&b_bcl_lvl0>;
@@ -49,6 +51,7 @@
 	};
 
 	pm8150b-bcl-lvl1 {
+		disable-thermal-zone;
 		cooling-maps {
 			vbat_cpu6 {
 				trip = <&b_bcl_lvl1>;
@@ -68,6 +71,7 @@
 	};
 
 	pm8150b-bcl-lvl2 {
+		disable-thermal-zone;
 		cooling-maps {
 			vbat_gpu2 {
 				trip = <&b_bcl_lvl2>;
