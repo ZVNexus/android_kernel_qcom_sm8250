@@ -2301,6 +2301,12 @@ void input_unregister_handler(struct input_handler *handler)
 {
 	struct input_handle *handle, *next;
 
+	//prevent NULL pointer dereference
+	if (handler->h_list.next == 0){
+		pr_err("[Display] NULL pointer, handler->h_list.next == 0\n");
+		return;
+	}
+
 	mutex_lock(&input_mutex);
 
 	list_for_each_entry_safe(handle, next, &handler->h_list, h_node)
