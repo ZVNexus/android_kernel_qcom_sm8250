@@ -534,7 +534,12 @@ static int dp_audio_ack_done(struct platform_device *pdev, u32 ack)
 
 	if (!audio->engine_on) {
 		atomic_set(&audio->acked, 1);
-		complete_all(&audio->hpd_comp);
+		/* ASUS BSP DP +++ */
+		if (&audio->hpd_comp != NULL)
+			complete_all(&audio->hpd_comp);
+		else
+			DP_LOG("hpd comp is NULL.\n");
+		/* ASUS BSP DP --- */
 	}
 end:
 	return rc;

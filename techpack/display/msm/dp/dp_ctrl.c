@@ -640,6 +640,8 @@ static void dp_ctrl_disable_link_clock(struct dp_ctrl_private *ctrl)
 	ctrl->power->clk_enable(ctrl->power, DP_LINK_PM, false);
 }
 
+extern bool force_dp_version; /* ASUS BSP DP +++ */
+
 static void dp_ctrl_select_training_pattern(struct dp_ctrl_private *ctrl,
 						bool downgrade)
 {
@@ -651,6 +653,13 @@ static void dp_ctrl_select_training_pattern(struct dp_ctrl_private *ctrl,
 		pattern = DP_TRAINING_PATTERN_3;
 	else
 		pattern = DP_TRAINING_PATTERN_2;
+
+	/* ASUS BSP DP, for PA329C +++ */
+	if (force_dp_version) {
+		DP_LOG("set training pattern to PATTERN_3");
+		pattern = DP_TRAINING_PATTERN_3;
+	}
+	/* ASUS BSP DP, for PA329c --- */
 
 	if (!downgrade)
 		goto end;

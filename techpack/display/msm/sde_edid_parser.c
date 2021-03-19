@@ -12,6 +12,13 @@
 #define DBC_START_OFFSET 4
 #define EDID_DTD_LEN 18
 
+/* ASUS BSP DP +++ */
+char *asus_vendor = NULL;
+bool force_hdcp1x = false;
+bool force_dp_version = false;
+bool force_60hz = false;
+/* ASUS BSP DP --- */
+
 enum data_block_types {
 	RESERVED,
 	AUDIO_DATA_BLOCK,
@@ -199,6 +206,7 @@ static void sde_edid_extract_vendor_id(struct sde_edid_ctrl *edid_ctrl)
 {
 	char *vendor_id;
 	u32 id_codes;
+	u32 proc_codes; /* ASUS BSP DP */
 
 	SDE_EDID_DEBUG("%s +", __func__);
 	if (!edid_ctrl) {
@@ -209,11 +217,37 @@ static void sde_edid_extract_vendor_id(struct sde_edid_ctrl *edid_ctrl)
 	vendor_id = edid_ctrl->vendor_id;
 	id_codes = ((u32)edid_ctrl->edid->mfg_id[0] << 8) +
 		edid_ctrl->edid->mfg_id[1];
+	/* ASUS BSP DP */
+	proc_codes =((u32)edid_ctrl->edid->prod_code[1] << 4) +
+		(edid_ctrl->edid->prod_code[0] >> 4);
 
 	vendor_id[0] = 'A' - 1 + ((id_codes >> 10) & 0x1F);
 	vendor_id[1] = 'A' - 1 + ((id_codes >> 5) & 0x1F);
 	vendor_id[2] = 'A' - 1 + (id_codes & 0x1F);
 	vendor_id[3] = 0;
+
+	/* ASUS BSP DP +++ */
+	asus_vendor = vendor_id;
+	if (!strncmp(asus_vendor, "AUS", 3) && proc_codes == 0x343)
+		force_hdcp1x = true;
+	else
+		force_hdcp1x = false;
+
+	// for PA329C
+	if (!strncmp(asus_vendor, "AUS", 3) && proc_codes == 0x326)
+		force_dp_version = true;
+	else
+		force_dp_version = false;
+
+	// for C27G2
+	if (!strncmp(asus_vendor, "AOC", 3) && proc_codes == 0x270)
+		force_60hz = true;
+	else
+		force_60hz = false;
+
+	pr_err("[msm-dp] vendor id=%s, proc codes=%x +++\n", vendor_id, proc_codes);
+	/* ASUS BSP DP --- */
+
 	SDE_EDID_DEBUG("vendor id is %s ", vendor_id);
 	SDE_EDID_DEBUG("%s -", __func__);
 }

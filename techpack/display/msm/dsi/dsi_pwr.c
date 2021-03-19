@@ -11,6 +11,7 @@
 #include "dsi_parser.h"
 #include "dsi_defs.h"
 
+extern bool g_Recovery_mode;
 /*
  * dsi_pwr_parse_supply_node() - parse power supply node from root device node
  */
@@ -158,20 +159,75 @@ static int dsi_pwr_enable_vregs(struct dsi_regulator_info *regs, bool enable)
 				}
 			}
 
-			rc = regulator_enable(vreg->vreg);
-			if (rc) {
-				DSI_ERR("enable failed for %s, rc=%d\n",
-				       vreg->vreg_name, rc);
-				goto error_disable_voltage;
-			}
+			// for touch we have to enable them as soon as possible
+			if (!strncmp(vreg->vreg_name, "vci", 3) &&
+				(i + 1 < regs->count) &&
+				!strncmp(regs->vregs[i + 1].vreg_name, "touch", 5)
+				) {
+				// pre-prepare for touch power here
+				struct dsi_vreg *touch_vreg = &regs->vregs[i + 1];
 
-			if (vreg->post_on_sleep)
-				usleep_range((post_on_ms * 1000),
-						(post_on_ms * 1000) + 10);
+				rc = regulator_set_load(touch_vreg->vreg,
+						touch_vreg->enable_load);
+				if (rc < 0) {
+					DSI_ERR("Setting optimum mode failed for %s\n",
+						touch_vreg->vreg_name);
+					goto error;
+				}
+				num_of_v = regulator_count_voltages(touch_vreg->vreg);
+				if (num_of_v > 0) {
+					rc = regulator_set_voltage(touch_vreg->vreg,
+								touch_vreg->min_voltage,
+								touch_vreg->max_voltage);
+					if (rc) {
+						DSI_ERR("Set voltage(%s) fail, rc=%d\n",
+							touch_vreg->vreg_name, rc);
+						goto error_disable_opt_mode;
+					}
+				}
+
+				rc = regulator_enable(vreg->vreg);
+				if (rc) {
+					DSI_ERR("enable failed for %s, rc=%d\n",
+						vreg->vreg_name, rc);
+					goto error_disable_voltage;
+				}
+				rc = regulator_enable(touch_vreg->vreg);
+				if (rc) {
+					DSI_ERR("enable failed for %s, rc=%d\n",
+						vreg->vreg_name, rc);
+					goto error_disable_voltage;
+				}
+				i++; //skip next touch vreg
+			} else {
+				rc = regulator_enable(vreg->vreg);
+				if (rc) {
+					DSI_ERR("enable failed for %s, rc=%d\n",
+						vreg->vreg_name, rc);
+					goto error_disable_voltage;
+				}
+
+				if (vreg->post_on_sleep) {
+					if (vreg->post_on_sleep == 600) { // 600 means 600us
+						usleep_range(500, 510); // sleep 500us counting latency in lift up power
+					} else {
+						usleep_range((post_on_ms * 1000),
+								(post_on_ms * 1000) + 10);
+					}
+				}
+			}
 		}
 	} else {
 		for (i = (regs->count - 1); i >= 0; i--) {
 			vreg = &regs->vregs[i];
+
+			if(g_Recovery_mode){
+				if(strcmp(vreg->vreg_name,"vdda-1p2")==0){
+					printk("dsi_pwr_enable_vregs skip disable %s for Recovery_mode reboot \n",vreg->vreg_name);
+					continue;
+				}
+			}
+
 			pre_off_ms = vreg->pre_off_sleep;
 			post_off_ms = vreg->post_off_sleep;
 
@@ -187,7 +243,6 @@ static int dsi_pwr_enable_vregs(struct dsi_regulator_info *regs, bool enable)
 			(void)regulator_set_load(regs->vregs[i].vreg,
 						regs->vregs[i].disable_load);
 			(void)regulator_disable(regs->vregs[i].vreg);
-
 			if (post_off_ms)
 				usleep_range((post_off_ms * 1000),
 						(post_off_ms * 1000) + 10);

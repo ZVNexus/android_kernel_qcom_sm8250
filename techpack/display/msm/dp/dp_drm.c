@@ -17,6 +17,9 @@
 
 #define to_dp_bridge(x)     container_of((x), struct dp_bridge, base)
 
+/* ASUS BSP DP +++ */
+extern uint8_t gDongleType;
+
 void convert_to_drm_mode(const struct dp_display_mode *dp_mode,
 				struct drm_display_mode *drm_mode)
 {
@@ -655,6 +658,12 @@ enum drm_mode_status dp_connector_mode_valid(struct drm_connector *connector,
 
 	dp_disp = display;
 	mode->vrefresh = drm_mode_vrefresh(mode);
+
+	/* ASUS BSP DP +++ */
+	if ( (mode->vrefresh < 60 || mode->vrefresh > 144 || mode->vdisplay > mode->hdisplay)
+		 && gDongleType != 2)
+		return MODE_BAD;
+	/* ASUS BSP DP --- */
 
 	return dp_disp->validate_mode(dp_disp, sde_conn->drv_panel,
 			mode, avail_res);
