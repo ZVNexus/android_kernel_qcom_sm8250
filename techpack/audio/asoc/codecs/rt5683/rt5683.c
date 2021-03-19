@@ -2407,9 +2407,6 @@ static int rt5683_i2c_probe(struct i2c_client *i2c,
 	/* Init Mutexlock */
 	mutex_init(&rt5683->control_lock);
 
-	/* ASUS_BSP +++ Init wake_lock for headset hook key  working in system suspend */
-	wakeup_source_init(&hook_key_wake_lock, "hook_key_lock");
-
 	/* Setting GPIO Port */
 	INIT_DELAYED_WORK(&rt5683->hs_btn_detect_work, rt5683_irq_interrupt_event);
 	INIT_DELAYED_WORK(&rt5683->read_fw_version, rt5683_read_fw_version_event);

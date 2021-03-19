@@ -2427,7 +2427,7 @@ void resume_console(void)
 //ASUS_BSP +++ [PM]Show GIC_IRQ wakeup information in AsusEvtlog
 	if (pm_pwrcs_ret) {
 		if (gic_irq_cnt > 0) {
-			log_wakeup_reason(gic_resume_irq);
+			log_irq_wakeup_reason(gic_resume_irq);
 			ASUSEvtlog("[PM] IRQs triggered: %d\n", gic_resume_irq);
 		}
 		pm_pwrcs_ret = 0;

@@ -1035,7 +1035,6 @@ void pm_system_irq_wakeup(unsigned int irq_number)
 			name = desc->action->name;
 
 		log_irq_wakeup_reason(irq_number);
-		log_wakeup_reason(irq_number);
 		pm_pwrcs_ret = 0;
 
 		pm_wakeup_irq = irq_number;
