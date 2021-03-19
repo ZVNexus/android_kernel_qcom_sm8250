@@ -8,6 +8,7 @@
 #include "cam_actuator_soc.h"
 #include "cam_actuator_core.h"
 #include "cam_trace.h"
+#include "asus_actuator.h"
 
 static long cam_actuator_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
@@ -401,6 +402,8 @@ static int32_t cam_actuator_driver_platform_probe(
 	platform_set_drvdata(pdev, a_ctrl);
 	a_ctrl->cam_act_state = CAM_ACTUATOR_INIT;
 	a_ctrl->open_cnt = 0;
+	asus_actuator_init(a_ctrl);
+	CAM_INFO(CAM_ACTUATOR, "Actuator Probe Success.");
 
 	return rc;
 
@@ -412,6 +415,7 @@ free_cci_client:
 	kfree(a_ctrl->io_master_info.cci_client);
 free_ctrl:
 	devm_kfree(&pdev->dev, a_ctrl);
+	CAM_INFO(CAM_ACTUATOR, "Actuator Probe Failed");
 	return rc;
 }
 

@@ -4685,6 +4685,7 @@ static int cam_csid_handle_hw_err_irq(
 	return rc;
 }
 
+extern uint8_t g_cam_csi_check;  //ASUS_BSP Bryant "Add for camera csi debug"
 irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 {
 	struct cam_ife_csid_hw                         *csid_hw;
@@ -4828,6 +4829,7 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 0 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN0_OVERFLOW;
 			goto handle_fatal_error;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
@@ -4835,6 +4837,7 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 1 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN1_OVERFLOW;
 			goto handle_fatal_error;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
@@ -4842,6 +4845,7 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 2 over flow",
 				csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN3_OVERFLOW;
 			goto handle_fatal_error;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
@@ -4849,6 +4853,7 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 3 over flow",
 				csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_TG_OVERFLOW;
 			goto handle_fatal_error;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
@@ -4876,18 +4881,21 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CSID_CSI2_RX_ERROR_CPHY_PH_CRC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d CPHY_PH_CRC",
 				csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_CPHY_PH_CRC;
 			csid_hw->error_irq_count++;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
 			CSID_CSI2_RX_ERROR_CRC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d ERROR_CRC",
 				csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_ERROR_CRC;
 			csid_hw->error_irq_count++;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &
 			CSID_CSI2_RX_ERROR_ECC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d ERROR_ECC",
 				csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_ERROR_ECC;
 			csid_hw->error_irq_count++;
 		}
 		if (irq_status[CAM_IFE_CSID_IRQ_REG_RX] &

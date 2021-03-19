@@ -227,5 +227,10 @@ int cam_flash_pmic_gpio_flush_request(struct cam_flash_ctrl *fctrl,
 	enum cam_flash_flush_type, uint64_t req_id);
 void cam_flash_shutdown(struct cam_flash_ctrl *fctrl);
 int cam_flash_release_dev(struct cam_flash_ctrl *fctrl);
-
+int cam_flash_prepare(struct cam_flash_ctrl *flash_ctrl,	bool regulator_enable);
+void cam_flash_shutdown(struct cam_flash_ctrl *flash_ctrl);
+//ASUS_BSP +++ Zhengwei "porting flash"
+int cam_flash_low(struct cam_flash_ctrl *flash_ctrl,struct cam_flash_frame_setting *flash_data);
+int cam_flash_high(struct cam_flash_ctrl *flash_ctrl,struct cam_flash_frame_setting *flash_data);
+//ASUS_BSP --- Zhengwei "porting flash"
 #endif /*_CAM_FLASH_DEV_H_*/

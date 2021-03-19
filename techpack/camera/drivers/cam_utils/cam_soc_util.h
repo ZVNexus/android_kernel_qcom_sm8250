@@ -30,7 +30,7 @@
 #define CAM_SOC_MAX_BASE            CAM_SOC_MAX_BLOCK
 
 /* maximum number of device regulator */
-#define CAM_SOC_MAX_REGULATOR       5
+#define CAM_SOC_MAX_REGULATOR       8 //ASUS_BSP jason_yeh add regualtor 8 for cam_v_custom2-supply
 
 /* maximum number of device clock */
 #define CAM_SOC_MAX_CLK             32

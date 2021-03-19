@@ -1524,6 +1524,7 @@ static int __cam_isp_ctx_epoch_in_applied(struct cam_isp_context *ctx_isp,
 		request_id = req->request_id;
 		ctx_isp->reported_req_id = request_id;
 	}
+
 	__cam_isp_ctx_send_sof_timestamp(ctx_isp, request_id,
 		CAM_REQ_MGR_SOF_EVENT_ERROR);
 	__cam_isp_ctx_update_event_record(ctx_isp,
