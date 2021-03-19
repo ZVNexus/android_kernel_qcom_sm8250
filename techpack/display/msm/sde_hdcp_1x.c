@@ -1464,13 +1464,6 @@ static int sde_hdcp_1x_cp_irq(void *input)
 			buf & BIT(2) ? "LINK_INTEGRITY_FAILURE" :
 				"REAUTHENTICATION_REQUEST");
 
-		hdcp->reauth = true;
-
-		if (!sde_hdcp_1x_state(HDCP_STATE_INACTIVE))
-			hdcp->hdcp_state = HDCP_STATE_AUTH_FAIL;
-
-		complete_all(&hdcp->sink_r0_available);
-		sde_hdcp_1x_update_auth_status(hdcp);
 	} else if (buf & BIT(1)) {
 		pr_debug("R0' AVAILABLE\n");
 		hdcp->sink_r0_ready = true;

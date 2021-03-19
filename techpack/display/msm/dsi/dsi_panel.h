@@ -224,6 +224,22 @@ struct dsi_panel {
 	int panel_test_gpio;
 	int power_mode;
 	enum dsi_panel_physical_type panel_type;
+
+	// ASUS parameters
+	bool panel_ready_for_cmd;
+	bool panel_first_bootup;
+	int asus_hbm_mode;
+	int asus_dim_mode;
+	int asus_bl_delay;
+	int asus_global_hbm_mode;
+	int asus_global_hbm_pending_mode;
+	int asus_local_hbm_mode;
+	int asus_global_hbm_cached_bl;
+	int asus_last_user_aod_bl;
+
+	char asus_initial_code_version[16];
+	char asus_initial_code_description[32];
+	u64 asus_boost_panel_clock_rate_hz;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -343,5 +359,17 @@ void dsi_panel_ext_bridge_put(struct dsi_panel *panel);
 
 void dsi_panel_calc_dsi_transfer_time(struct dsi_host_common_cfg *config,
 		struct dsi_display_mode *mode, u32 frame_threshold_us);
+
+/*
+ * ASUS ROG3 display protocol panel functions
+ */
+int dsi_panel_asus_switch_fps(struct dsi_panel *panel, int type);
+int dsi_panel_set_osc(struct dsi_panel *panel);
+int dsi_panel_set_idle(struct dsi_panel *panel, bool enter);
+void dsi_panel_bl_delay(struct dsi_panel *panel);
+int dsi_panel_set_hbm(struct dsi_panel *panel, bool enable);
+int dsi_panel_set_global_hbm(struct dsi_panel *panel, bool enable);
+int dsi_panel_set_local_hbm(struct dsi_panel *panel, bool enable);
+int dsi_panel_set_bus_dim(struct dsi_panel *panel, int refresh_rate);
 
 #endif /* _DSI_PANEL_H_ */

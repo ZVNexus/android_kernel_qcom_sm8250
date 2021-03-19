@@ -42,6 +42,12 @@
 #include "sde_core_perf.h"
 #include "sde_trace.h"
 
+/* ASUS BSP Display +++ */
+#define COMMIT_FRAMES_COUNT 5
+int display_commit_cnt = COMMIT_FRAMES_COUNT;
+bool asus_display_in_normal_on(void);
+/* ASUS BSP Display --- */
+
 #define SDE_PSTATES_MAX (SDE_STAGE_MAX * 4)
 #define SDE_MULTIRECT_PLANE_MAX (SDE_STAGE_MAX * 2)
 
@@ -3570,6 +3576,15 @@ int sde_crtc_reset_hw(struct drm_crtc *crtc, struct drm_crtc_state *old_state,
 	return !recovery_events ? 0 : -EAGAIN;
 }
 
+#if 1 // FOD
+extern void hbm_on(int on);
+bool has_fov_makser;
+bool old_has_fov_makser;
+bool has_fod_spot;
+bool old_has_fod_spot;
+extern void asus_primary_display_commit(void);
+#endif
+
 void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
@@ -3609,6 +3624,10 @@ void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 		return;
 
 	SDE_ATRACE_BEGIN("crtc_commit");
+
+	if (!strcmp(crtc->name, "crtc-0")) {
+		asus_primary_display_commit();
+	}
 
 	idle_pc_state = sde_crtc_get_property(cstate, CRTC_PROP_IDLE_PC_STATE);
 
@@ -3683,6 +3702,13 @@ void sde_crtc_commit_kickoff(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
+	/* ASUS BSP Display +++ */
+	if (display_commit_cnt > 0 && !strcmp(crtc->name, "crtc-0")) {
+		pr_err("[Display] fbc%d\n", display_commit_cnt);
+		display_commit_cnt--;
+	}
+	/* ASUS BSP Display --- */
+
 	SDE_ATRACE_END("crtc_commit");
 }
 
@@ -3742,6 +3768,7 @@ static int _sde_crtc_vblank_enable_no_lock(
 	return 0;
 }
 
+extern int asus_current_fps;
 /**
  * sde_crtc_duplicate_state - state duplicate hook
  * @crtc: Pointer to drm crtc structure
@@ -3775,6 +3802,10 @@ static struct drm_crtc_state *sde_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	/* duplicate base helper */
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &cstate->base);
+
+	// ASUS_BSP: update refresh rate to current refresh rate
+	if (asus_current_fps > 0)
+		cstate->base.mode.vrefresh = asus_current_fps;
 
 	return &cstate->base;
 }
@@ -4079,6 +4110,10 @@ static void sde_crtc_disable(struct drm_crtc *crtc)
 	/* disable clk & bw control until clk & bw properties are set */
 	cstate->bw_control = false;
 	cstate->bw_split_vote = false;
+
+	/* ASUS BSP Display +++ */
+	display_commit_cnt = COMMIT_FRAMES_COUNT;
+	/* ASUS BSP Display --- */
 
 	mutex_unlock(&sde_crtc->crtc_lock);
 }
@@ -5093,6 +5128,14 @@ static void sde_crtc_install_properties(struct drm_crtc *crtc,
 		"idle_time", 0, 0, U64_MAX, 0,
 		CRTC_PROP_IDLE_TIMEOUT);
 
+	msm_property_install_range(&sde_crtc->property_info,
+		"fod_masker", 0, 0, U64_MAX, 0,
+		CRTC_PROP_FOD_MASKER);
+
+	msm_property_install_range(&sde_crtc->property_info,
+		"fod_spot", 0, 0, U64_MAX, 0,
+		CRTC_PROP_FOD_SPOT);
+
 	if (catalog->has_idle_pc)
 		msm_property_install_enum(&sde_crtc->property_info,
 			"idle_pc_state", 0x0, 0, e_idle_pc_state,
@@ -5438,6 +5481,37 @@ static int sde_crtc_atomic_set_property(struct drm_crtc *crtc,
 			}
 		}
 		break;
+#if 1 // FOD
+	case CRTC_PROP_FOD_MASKER:
+		//printk("FOD:sde_crtc_atomic_set_property(), %d,%d",old_has_fov_makser,has_fov_makser);
+		if (!strcmp(crtc->name, "crtc-0")){
+			has_fov_makser = val;
+			if (old_has_fov_makser == false && has_fov_makser == true)
+			{
+				// OFF->ON
+				hbm_on(true);
+				printk("[Display] FOD:OFF->ON");
+			} else if (old_has_fov_makser == true && has_fov_makser == false){
+				// ON->OFF
+				hbm_on(false);
+				printk("[Display] FOD:ON->OFF");
+			}
+			old_has_fov_makser = has_fov_makser;
+		}
+		break;
+	case CRTC_PROP_FOD_SPOT:
+		if (!strcmp(crtc->name, "crtc-0")){
+			has_fod_spot = val;
+			if (old_has_fod_spot == false && has_fod_spot == true)
+			{
+				printk("[Display] FOD SPOT:OFF->ON");
+			} else if (old_has_fod_spot == true && has_fod_spot == false){
+				printk("[Display] FOD SPOT:ON->OFF");
+			}
+			old_has_fod_spot = has_fod_spot;
+		}
+		break;
+#endif
 	default:
 		/* nothing to do */
 		break;

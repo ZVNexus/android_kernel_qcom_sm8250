@@ -36,6 +36,17 @@
 #include "drm_crtc_helper_internal.h"
 #include "drm_crtc_internal.h"
 
+/* ASUS BSP Display +++ */
+struct drm_display_mode *asus_drm_display_mode;
+bool asus_first_boot = true;
+bool asus_blocking_fps_until_bootup = true;
+bool need_change_fps = true;
+int asus_current_fps = 144;
+bool asus_fps_overriding = false;
+
+extern bool asus_display_in_aod(void);
+/* ASUS BSP Display --- */
+
 /**
  * DOC: overview
  *
@@ -294,6 +305,10 @@ update_connector_routing(struct drm_atomic_state *state,
 		if (new_connector_state->crtc) {
 			crtc_state = drm_atomic_get_new_crtc_state(state, new_connector_state->crtc);
 			crtc_state->connectors_changed = true;
+			if (!strcmp(new_connector_state->crtc->name, "crtc-1")) {
+				pr_err("[msm-dp] set connectors_changed to false first.\n", __func__);
+				crtc_state->connectors_changed = false;
+			}
 		}
 	}
 
@@ -596,11 +611,54 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
+		/* ASUS BSP Display +++ */
+		if (!strcmp(crtc->name, "crtc-0")) {
+			if (asus_first_boot) {
+				if (!asus_drm_display_mode) {
+					asus_drm_display_mode = kzalloc(sizeof(struct drm_display_mode), GFP_KERNEL);
+				}
+				memcpy(asus_drm_display_mode, &crtc->state->mode, sizeof(struct drm_display_mode));
+				asus_first_boot = false;
+				pr_err("[Display] primary fps (%d)\n", asus_drm_display_mode->vrefresh);
+			}
+
+			/* run time */
+			if ((old_crtc_state->enable == new_crtc_state->enable) &&
+				(old_crtc_state->active == new_crtc_state->active)) {
+				if ((asus_current_fps != new_crtc_state->mode.vrefresh) && !asus_fps_overriding) {
+					pr_err("[Display] new fps(%d), current fps(%d)\n", new_crtc_state->mode.vrefresh, asus_current_fps);
+					asus_current_fps = new_crtc_state->mode.vrefresh;
+					need_change_fps = true;
+				}
+			}
+
+			if (asus_blocking_fps_until_bootup)
+				need_change_fps = false;
+		}
+		/* ASUS BSP Display --- */
+
 		if (!drm_mode_equal(&old_crtc_state->mode, &new_crtc_state->mode)) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] mode changed\n",
 					 crtc->base.id, crtc->name);
 			new_crtc_state->mode_changed = true;
+			/* ASUS BSP Display, disable dfps +++ */
+			new_crtc_state->mode_changed = false;
 		}
+
+		/* ASUS BSP Display, prevent sde crash +++ */
+		if (!strcmp(crtc->name, "crtc-0") && new_crtc_state->active == 0) {
+			memcpy(&new_crtc_state->mode, asus_drm_display_mode, sizeof(struct drm_display_mode));
+			memcpy(&old_crtc_state->mode, asus_drm_display_mode, sizeof(struct drm_display_mode));
+		}
+
+
+		if (!strcmp(crtc->name, "crtc-0") && need_change_fps && asus_display_in_aod()) {
+			printk("[Display] skip dfps in AOD doze mode\n");
+			memcpy(&new_crtc_state->mode, asus_drm_display_mode, sizeof(struct drm_display_mode));
+			asus_current_fps = new_crtc_state->mode.vrefresh;
+			need_change_fps = false;
+		}
+		/* ASUS BSP Display, prevent sde crash --- */
 
 		if (old_crtc_state->enable != new_crtc_state->enable) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] enable changed\n",

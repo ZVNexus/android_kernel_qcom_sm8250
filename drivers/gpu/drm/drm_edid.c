@@ -2901,7 +2901,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 	struct detailed_mode_closure closure = {
 		.connector = connector,
 		.edid = edid,
-		.preferred = true,
+		//.preferred = true,
 		.quirks = quirks,
 	};
 

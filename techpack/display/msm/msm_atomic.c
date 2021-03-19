@@ -16,6 +16,7 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <drm/drm_panel.h>
+#include <drm/drm_sysfs.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"
@@ -23,6 +24,16 @@
 #include "sde_trace.h"
 
 #define MULTIPLE_CONN_DETECTED(x) (x > 1)
+
+/* ASUS BSP Display +++ */
+extern int asus_current_fps;
+extern bool need_change_fps;
+
+extern bool has_fov_makser; //flag indicate the fod masker layer exist
+extern bool has_fod_spot;   //flag indicate the fod spot layer exist
+extern int asus_ghbm_on_requested; //flag indicates GHBM is pending
+extern int fod_spot_ui_ready; //flag indicate the fod spot has shown on screen
+/* ASUS BSP Display --- */
 
 struct msm_commit {
 	struct drm_device *dev;
@@ -357,6 +368,7 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	struct msm_kms *kms = priv->kms;
 	int bridge_enable_count = 0;
 	int i;
+	int type = 0; // ASUS BSP Display +++
 
 	SDE_ATRACE_BEGIN("msm_enable");
 	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state,
@@ -399,6 +411,24 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 		if (!new_conn_state->best_encoder)
 			continue;
+
+		/* ASUS BSP Display +++ */
+		if (need_change_fps) {
+			if (asus_current_fps >= 60 && asus_current_fps < 90)
+				type = 2;
+			else if (asus_current_fps >= 90 && asus_current_fps < 120)
+				type = 1;
+			else if (asus_current_fps >= 120 && asus_current_fps < 144)
+				type = 0;
+			else if (asus_current_fps == 160)
+				type = 4;
+			else
+				type = 3;  //default to 144fps
+
+			drm_bridge_asus_dfps(connector->state->best_encoder->bridge, type);
+			need_change_fps = false;
+		}
+		/* ASUS BSP Display --- */
 
 		if (!new_conn_state->crtc->state->active ||
 				!drm_atomic_crtc_needs_modeset(
@@ -537,6 +567,9 @@ static void complete_commit(struct msm_commit *c)
 static void _msm_drm_commit_work_cb(struct kthread_work *work)
 {
 	struct msm_commit *commit = NULL;
+	bool commit_for_fod_spot = false;
+	bool commit_for_fod_masker = false;
+	bool report_fod_spot_disappear = false;
 
 	if (!work) {
 		DRM_ERROR("%s: Invalid commit work data!\n", __func__);
@@ -545,9 +578,40 @@ static void _msm_drm_commit_work_cb(struct kthread_work *work)
 
 	commit = container_of(work, struct msm_commit, commit_work);
 
+	/*
+	 * Since has_fov_makser flag first raise before commit
+	 * and asus_ghbm_on_requested will be set during commit work
+	 * So, we can use these two flag to know this is the FIRST fod UI commit
+	 */
+	if (has_fov_makser && !asus_ghbm_on_requested) {
+		printk("[Display] commit FOD makser to panel +++ \n");
+		commit_for_fod_masker = true;
+	}
+	if (has_fod_spot && !fod_spot_ui_ready) {
+		printk("[Display] commit FOD spot to panel +++ \n");
+		commit_for_fod_spot = true;
+	} else if (!has_fod_spot && fod_spot_ui_ready) {
+		report_fod_spot_disappear = true;
+	}
+
 	SDE_ATRACE_BEGIN("complete_commit");
 	complete_commit(commit);
 	SDE_ATRACE_END("complete_commit");
+
+	if (report_fod_spot_disappear) {
+		asus_drm_notify(ASUS_NOTIFY_SPOT_READY, 0);
+		printk("[Display] removed fod spot \n");
+	}
+
+	if (commit_for_fod_spot) {
+		int period_ms = 1000000 / asus_current_fps;
+		printk("[Display] commit FOD spot to panel (%d) --- \n", period_ms);
+		udelay(period_ms);
+		asus_drm_notify(ASUS_NOTIFY_SPOT_READY, 1);
+	}
+	if (commit_for_fod_masker) {
+		printk("[Display] commit FOD makser to panel --- \n");
+	}
 }
 
 static struct msm_commit *commit_init(struct drm_atomic_state *state,

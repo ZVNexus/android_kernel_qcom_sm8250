@@ -147,6 +147,7 @@ static void _sde_core_perf_calc_doze_suspend(struct drm_crtc *crtc,
 	}
 }
 
+extern bool asus_var_ever_power_off;
 static void _sde_core_perf_calc_crtc(struct sde_kms *kms,
 		struct drm_crtc *crtc,
 		struct drm_crtc_state *state,
@@ -217,6 +218,12 @@ static void _sde_core_perf_calc_crtc(struct sde_kms *kms,
 		perf->core_clk_rate = max(kms->perf.fix_core_clk_rate,
 						perf->core_clk_rate);
 	}
+
+	// use default max core clock rate as ROG2
+	if (asus_var_ever_power_off)
+		perf->core_clk_rate = 460000000;
+	else
+		perf->core_clk_rate = 459999999;
 
 	SDE_EVT32(DRMID(crtc), perf->core_clk_rate,
 		GET_H32(perf->bw_ctl[SDE_POWER_HANDLE_DBUS_ID_MNOC]),
