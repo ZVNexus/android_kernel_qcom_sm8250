@@ -727,6 +727,7 @@ static void restart_usb_host_work(struct work_struct *w)
 	}
 
 	start_usb_host(pd, false);
+}
 
 static inline void start_usb_peripheral_dt(struct usbpd *pd, int ss)
 {

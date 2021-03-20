@@ -5478,16 +5478,6 @@ void asus_display_get_tcon_cmd(char cmd, int rlen)
 	struct dsi_display_ctrl *mctrl;
 	struct dsi_panel *panel;
 
-	drm = dev_get_drvdata(master);
-	display = platform_get_drvdata(pdev);
-	if (!drm || !display) {
-		DSI_ERR("invalid param(s), drm %pK, display %pK\n",
-				drm, display);
-		return -EINVAL;
-	}
-	if (!display->panel_node && !display->fw)
-		return 0;
-
 	if (!asus_display_panel_valid())
 		return;
 

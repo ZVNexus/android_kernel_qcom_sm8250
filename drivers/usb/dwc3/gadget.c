@@ -2966,10 +2966,9 @@ static int dwc3_gadget_init_endpoints(struct dwc3 *dwc, u8 total)
 	u8				epnum;
 	u8				out_count;
 	u8				in_count;
-	u8				idx_out, idx_in;
+	u8				idx;
 	struct dwc3_ep			*dep;
 
-	idx_out = idx_in = 0;
 	in_count = out_count = total / 2;
 	out_count += total & 1;		/* in case odd, there is one more OUT */
 
