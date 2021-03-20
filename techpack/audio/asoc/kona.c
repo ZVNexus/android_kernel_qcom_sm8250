@@ -9100,11 +9100,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 #else
-	if(g_ASUS_hwID == HW_REV_EVB) {
-		card = populate_snd_card_dailinks_evb(&pdev->dev);
-	} else {
-		card = populate_snd_card_dailinks(&pdev->dev);
-	}
+	card = populate_snd_card_dailinks(&pdev->dev);
 	if (!card) {
 		dev_err(&pdev->dev, "%s: Card uninitialized\n", __func__);
 		ret = -EINVAL;
