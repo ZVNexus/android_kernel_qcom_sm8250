@@ -2992,9 +2992,14 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 	int param_size;
 	int num_ec_ref_rx_chans = this_adm.num_ec_ref_rx_chans;
 
-	pr_debug("%s:port %#x path:%d rate:%d mode:%d perf_mode:%d,topo_id %d\n",
+	printk("%s:port %#x path:%d rate:%d mode:%d perf_mode:%d,topo_id %d\n",
 		 __func__, port_id, path, rate, channel_mode, perf_mode,
 		 topology);
+
+	if (path == ADM_PATH_LIVE_REC) {
+		rate = 48000;
+		printk("%s: path:%d capturing, so force to resample rate:%d\n", __func__, path, rate);
+	}
 
 	port_id = q6audio_convert_virtual_to_portid(port_id);
 	port_idx = adm_validate_and_get_port_index(port_id);
@@ -3058,6 +3063,9 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		    (rate != ADM_CMD_COPP_OPEN_SAMPLE_RATE_32K))
 			rate = 16000;
 	}
+
+	if (topology == VPM_TX_VOICE_FLUENCE_SM_COPP_TOPOLOGY)
+		channel_mode = 1;
 
 	if (topology == FFECNS_TOPOLOGY) {
 		this_adm.ffecns_port_id = port_id;
