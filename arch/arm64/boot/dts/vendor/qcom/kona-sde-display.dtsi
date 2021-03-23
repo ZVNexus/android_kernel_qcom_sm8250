@@ -155,11 +155,11 @@
 		regulator-min-microvolt = <5500000>;
 		regulator-max-microvolt = <5500000>;
 		regulator-enable-ramp-delay = <233>;
-		gpio = <&tlmm 61 0>;
+		//gpio = <&tlmm 61 0>;
 		enable-active-high;
 		regulator-boot-on;
-		pinctrl-names = "default";
-		pinctrl-0 = <&display_panel_avdd_default>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&display_panel_avdd_default>;
 	};
 
 	sde_dsi: qcom,dsi-display-primary {
