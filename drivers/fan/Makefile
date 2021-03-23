@@ -1,0 +1,1 @@
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= nct7802.o

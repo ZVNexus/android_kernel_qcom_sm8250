@@ -1,0 +1,6 @@
+config GAMEPAD_HID
+	bool "Asus Kuni Gamepad"
+	default y
+	depends on USB_HID
+	help
+		Enable GamePad driver

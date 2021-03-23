@@ -17,10 +17,21 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/string.h>
 
+
+#include <linux/kernel.h>
+#include <asm/uaccess.h>
+#include <linux/cdev.h>
+#include <linux/proc_fs.h>
+
+
 #define pm8008_err(reg, message, ...) \
 	pr_err("%s: " message, (reg)->rdesc.name, ##__VA_ARGS__)
 #define pm8008_debug(reg, message, ...) \
 	pr_debug("%s: " message, (reg)->rdesc.name, ##__VA_ARGS__)
+
+
+#define	PROC_PM8008	"driver/pm8008"
+#define	Camera_PM8008_status	"driver/Camera_PM8008_status"
 
 #define STARTUP_DELAY_USEC		20
 #define VSET_STEP_SIZE_MV		1
@@ -32,6 +43,7 @@
 #define MISC_CHIP_ENABLE_REG		(MISC_BASE + 0x50)
 #define CHIP_ENABLE_BIT			BIT(0)
 
+//#define DUMP_REG(base)		(base)
 #define MISC_SHUTDOWN_CTRL_REG		(MISC_BASE + 0x59)
 #define IGNORE_LDO_OCP_SHUTDOWN		BIT(3)
 
@@ -68,6 +80,9 @@
 
 #define MAX_REG_NAME			20
 #define PM8008_MAX_LDO			7
+
+static struct regmap *regmap_debug = NULL;
+static bool probe_success = 0;
 
 struct pm8008_chip {
 	struct device		*dev;
@@ -111,6 +126,24 @@ static struct regulator_data reg_data[] = {
 			{"pm8008_l7", "vdd_l7", 10000, 300000},
 };
 
+
+static void create_proc_file(const char *PATH,const struct file_operations* f_ops, void *data)
+{
+	struct proc_dir_entry *pde;
+
+	pde = proc_create_data(PATH, 0666, NULL, f_ops, data);
+	if(pde)
+	{
+		pr_info("create(%s) done\n",PATH);
+	}
+	else
+	{
+		pr_err("create(%s) failed!\n",PATH);
+	}
+}
+
+
+
 /* common functions */
 static int pm8008_read(struct regmap *regmap,  u16 reg, u8 *val, int count)
 {
@@ -148,6 +181,78 @@ static int pm8008_masked_write(struct regmap *regmap, u16 reg, u8 mask,
 
 	return rc;
 }
+
+static int pm8008_debug_read(struct seq_file *buf, void *v)
+{
+	int i,rc;
+
+	u8 dump_value[0xFF];
+	int addr=0x14000; //LDO1 base address
+
+/*
+	Base address:
+	LDO1:0x14000
+	LDO2:0x14100
+	LDO3:0x14200
+	LDO4:0x14300
+	LDO5:0x14400
+	LDO6:0x14500
+*/
+	if (regmap_debug)
+	{
+		rc = pm8008_read(regmap_debug, addr, dump_value, 0xFF);
+		for ( i = 0; i <= 0xFF; i++)
+		{
+			seq_printf(buf, "0x%06X 0x%02X\n",(addr+i),dump_value[i]);
+		}
+	}else
+	{
+		pr_err("regmap_debug == NULL");
+		return 0;
+	}
+
+
+	return 0;
+
+}
+
+
+static int pm8008_proc_open(struct inode *inode, struct	 file *file)
+{
+	return single_open(file, pm8008_debug_read, NULL);
+}
+
+static struct file_operations pm8008_dump_fops = {
+	.owner = THIS_MODULE,
+	.open = pm8008_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+
+
+static int camera_pm8008_status_read(struct seq_file *buf, void *v)
+{
+	seq_printf(buf, "%d\n",probe_success);
+	return 0;
+}
+
+
+static int camera_pm8008_status_open(struct inode *inode, struct	 file *file)
+{
+	return single_open(file, camera_pm8008_status_read, NULL);
+}
+
+static struct file_operations camera_pm8008_status_fops = {
+	.owner = THIS_MODULE,
+	.open = camera_pm8008_status_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+
 
 /* PM8008 LDO Regulator callbacks */
 static int pm8008_regulator_get_voltage(struct regulator_dev *rdev)
@@ -189,6 +294,7 @@ static int pm8008_regulator_is_enabled(struct regulator_dev *rdev)
 static int pm8008_regulator_enable(struct regulator_dev *rdev)
 {
 	struct pm8008_regulator *pm8008_reg = rdev_get_drvdata(rdev);
+
 	int rc, rc2, current_uv, delay_us, delay_ms, retry_count = 10;
 	u8 reg;
 
@@ -198,6 +304,9 @@ static int pm8008_regulator_enable(struct regulator_dev *rdev)
 			current_uv);
 		return current_uv;
 	}
+
+	if (pm8008_reg)
+		regmap_debug = pm8008_reg->regmap;
 
 	rc = regulator_enable(pm8008_reg->en_supply);
 	if (rc < 0) {
@@ -451,11 +560,15 @@ static int pm8008_regulator_set_mode(struct regulator_dev *rdev,
 	int rc;
 	u8 val = LDO_MODE_LPM;
 
+	val = LDO_MODE_NPM; //workaround set LDO_MODE_NPM of pm8008 regulator (L1~L7)
+	/*
 	if (mode == REGULATOR_MODE_NORMAL)
 		val = LDO_MODE_NPM;
 	else if (mode == REGULATOR_MODE_IDLE)
 		val = LDO_MODE_LPM;
+	*/
 
+	//pm8008_debug(pm8008_reg, " mode %d set val to %d\n", mode, val);
 	rc = pm8008_masked_write(pm8008_reg->regmap,
 				LDO_MODE_CTL1_REG(pm8008_reg->base),
 				MODE_PRIMARY_MASK, val);
@@ -775,7 +888,7 @@ static int pm8008_regulator_probe(struct platform_device *pdev)
 /* PM8008 chip enable regulator callbacks */
 static int pm8008_enable_regulator_enable(struct regulator_dev *rdev)
 {
-	struct pm8008_chip *chip = rdev_get_drvdata(rdev);
+	struct pm8008_regulator *chip = rdev_get_drvdata(rdev);
 	int rc;
 
 	rc = pm8008_masked_write(chip->regmap, MISC_CHIP_ENABLE_REG,
@@ -791,7 +904,7 @@ static int pm8008_enable_regulator_enable(struct regulator_dev *rdev)
 
 static int pm8008_enable_regulator_disable(struct regulator_dev *rdev)
 {
-	struct pm8008_chip *chip = rdev_get_drvdata(rdev);
+	struct pm8008_regulator *chip = rdev_get_drvdata(rdev);
 	int rc;
 
 	rc = pm8008_masked_write(chip->regmap, MISC_CHIP_ENABLE_REG,
@@ -807,7 +920,7 @@ static int pm8008_enable_regulator_disable(struct regulator_dev *rdev)
 
 static int pm8008_enable_regulator_is_enabled(struct regulator_dev *rdev)
 {
-	struct pm8008_chip *chip = rdev_get_drvdata(rdev);
+	struct pm8008_regulator *chip = rdev_get_drvdata(rdev);
 	int rc;
 	u8 reg;
 
@@ -866,6 +979,7 @@ static int pm8008_chip_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 	struct pm8008_chip *chip;
+	static uint8_t has_created = 0;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -885,6 +999,14 @@ static int pm8008_chip_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	if(!has_created)
+	{
+		create_proc_file(PROC_PM8008, &pm8008_dump_fops, NULL);
+		create_proc_file(Camera_PM8008_status, &camera_pm8008_status_fops, NULL);
+		has_created = 1;
+	}
+
+	probe_success = 1;
 	chip->ocp_irq = of_irq_get_byname(chip->dev->of_node, "ocp");
 	if (chip->ocp_irq < 0) {
 		pr_debug("Failed to get pm8008-ocp-irq\n");
@@ -922,6 +1044,7 @@ static int pm8008_chip_remove(struct platform_device *pdev)
 	if (rc  < 0)
 		pr_err("failed to disable chip rc=%d\n", rc);
 
+	probe_success = 0;
 	return 0;
 }
 

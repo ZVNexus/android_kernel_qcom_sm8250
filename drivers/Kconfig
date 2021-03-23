@@ -230,4 +230,11 @@ source "drivers/sensors/Kconfig"
 source "drivers/gpu/msm/Kconfig"
 
 source "drivers/energy_model/Kconfig"
+
+source "drivers/motor/tspdrv_aw8697/Kconfig"
+
+source "drivers/motor/tspdrv/Kconfig"
+
+source "drivers/gamepad_hid_driver/Kconfig"
+
 endmenu

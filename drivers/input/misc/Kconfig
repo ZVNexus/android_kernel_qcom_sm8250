@@ -182,6 +182,15 @@ config INPUT_QTI_HAPTICS
 	  is capable of driving both LRA and ERM vibrators.  This module provides
 	  haptic feedback for user actions such as a long press on the touch screen.
 
+config INPUT_ASUS_HAPTICS
+	tristate "Haptics support for QTI PMIC"
+	depends on MFD_SPMI_PMIC
+	help
+	  This option enables device driver support for the haptics peripheral
+	  found on Qualcomm Technologies, Inc. PMICs.  The haptics peripheral
+	  is capable of driving both LRA and ERM vibrators.  This module provides
+	  haptic feedback for user actions such as a long press on the touch screen.
+	  
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
 	depends on PCI && SPARC64
@@ -874,4 +883,24 @@ config INPUT_SC27XX_VIBRA
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
 
+config INPUT_SX932X
+	tristate "INPUT_SX932X cap sensor input device"
+	depends on I2C
+	help
+	  Say Y here if you want to support a cap sensor connected via I2C
+	  with a INPUT_SX932X.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called INPUT_SX932X.
+
+config INPUT_SX932X_2ND
+	tristate "INPUT_SX932X_2ND cap sensor input device"
+	depends on I2C
+	help
+	  Say Y here if you want to support a cap sensor connected via I2C
+	  with a INPUT_SX932X_2ND.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called INPUT_SX932X_2ND.
+	  
 endif

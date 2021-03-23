@@ -192,3 +192,15 @@ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
 obj-$(CONFIG_SIOX)		+= siox/
 obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
+
+obj-$(CONFIG_TSPDRV_AW8697)	+= motor/tspdrv_aw8697/
+
+obj-$(CONFIG_MACH_ASUS_ZS670KS)	+= msp/
+
+obj-$(CONFIG_TSPDRV) += motor/tspdrv/
+
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= aura_sync/
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= gamepad_hid_driver/
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= ec_hid_driver/
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= dt_power/
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= fan/

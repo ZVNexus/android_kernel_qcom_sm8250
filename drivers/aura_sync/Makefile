@@ -1,0 +1,1 @@
+obj-$(CONFIG_MACH_ASUS_ZS661KS)	+= ene_8k41.o
