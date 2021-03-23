@@ -2045,6 +2045,7 @@ static int fastrpc_invoke_send(struct smq_invoke_ctx *ctx,
 	struct fastrpc_channel_ctx *channel_ctx = &fl->apps->channel[fl->cid];
 	int err = 0;
 
+	channel_ctx = &fl->apps->channel[fl->cid];
 	mutex_lock(&channel_ctx->smd_mutex);
 	msg->pid = fl->tgid;
 	msg->tid = current->pid;
