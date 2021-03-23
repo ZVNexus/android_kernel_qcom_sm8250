@@ -92,6 +92,14 @@ static const struct dp_panel_info fail_safe = {
 	.bpp = 24,
 };
 
+/* ASUS BSP DP +++ */
+extern char *asus_vendor;
+extern uint8_t gDongleType;
+extern bool dp_display_is_hdmi_bridge(struct dp_panel *panel);
+extern struct dp_debug *asus_debug;
+bool dt_hdmi = false;
+/* ASUS BSP DP --- */
+
 /* OEM NAME */
 static const u8 vendor_name[8] = {81, 117, 97, 108, 99, 111, 109, 109};
 
@@ -1800,6 +1808,7 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel, bool multi_func)
 	struct drm_dp_aux *drm_aux;
 	u8 *dpcd, rx_feature, temp;
 	u32 dfp_count = 0, offset = DP_DPCD_REV;
+	int dpcd_retry = 3; /* ASUS BSP DP +++ */
 
 	if (!dp_panel) {
 		DP_ERR("invalid input\n");
@@ -1823,12 +1832,25 @@ static int dp_panel_read_dpcd(struct dp_panel *dp_panel, bool multi_func)
 		goto skip_dpcd_read;
 	}
 
-	rlen = drm_dp_dpcd_read(drm_aux, DP_TRAINING_AUX_RD_INTERVAL, &temp, 1);
-	if (rlen != 1) {
-		DP_ERR("error reading DP_TRAINING_AUX_RD_INTERVAL\n");
-		rc = -EINVAL;
-		goto end;
-	}
+	/* ASUS BSP DP +++ */
+	do {
+		rlen = drm_dp_dpcd_read(drm_aux, DP_TRAINING_AUX_RD_INTERVAL, &temp, 1);
+		if (rlen != 1) {
+			if (dpcd_retry > 1) {
+				DP_LOG("retry reading DP_TRAINING_AUX_RD_INTERVAL\n");
+				mdelay(100);
+			} else {
+				DP_ERR("error reading DP_TRAINING_AUX_RD_INTERVAL\n");
+				rc = -EINVAL;
+				goto end;
+			}
+		} else {
+			break;
+		}
+
+		dpcd_retry--;
+	} while (dpcd_retry > 0);
+	/* ASUS BSP DP --- */
 
 	/* check for EXTENDED_RECEIVER_CAPABILITY_FIELD_PRESENT */
 	if (temp & BIT(7)) {
@@ -2179,7 +2201,17 @@ static u32 dp_panel_get_supported_bpp(struct dp_panel *dp_panel,
 	if (dp_panel->dsc_en)
 		min_supported_bpp = 24;
 
-	bpp = min_t(u32, mode_edid_bpp, max_supported_bpp);
+	/* ASUS BSP DP, to limit output with 8bit@24bpp +++ */
+	//dt_hdmi = dp_display_is_hdmi_bridge(dp_panel);
+	if ((asus_vendor && !strncmp(asus_vendor, "ACR", 3)) || (gDongleType ==  3 && dt_hdmi))
+		bpp = min_t(u32, mode_edid_bpp, DP_PANEL_DEFAULT_BPP);
+	else
+		bpp = min_t(u32, mode_edid_bpp, max_supported_bpp);
+
+	// TT#255578
+	if (mode_edid_bpp > max_supported_bpp)
+		min_supported_bpp = 24;
+	/* ASUS BSP DP, to limit output with 8bit@24bpp --- */
 
 	link_info = &dp_panel->link_info;
 	data_rate_khz = link_info->num_lanes * link_info->rate * 8;
@@ -2236,6 +2268,9 @@ static u32 dp_panel_get_mode_bpp(struct dp_panel *dp_panel,
 	else
 		bpp = dp_panel_get_supported_bpp(dp_panel, mode_edid_bpp,
 				mode_pclk_khz);
+
+	if (asus_debug->debug_bpp)
+		bpp = asus_debug->debug_bpp;
 
 	return bpp;
 }

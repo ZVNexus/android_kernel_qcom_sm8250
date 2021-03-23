@@ -19,6 +19,24 @@
 #define VDM_VERSION		0x0
 #define USB_C_DP_SID		0xFF01
 
+/* ASUS BSP DP +++ */
+struct dp_usbpd_private *asus_usbpd;
+struct mutex asus_gs_mutex;
+extern uint8_t gDongleType;
+extern struct completion usb_host_complete1;
+extern int hid_to_set_ultra_power_mode(u8 type); // 1:in 0:out
+extern int get_prodock_state(void);
+extern bool g_station_sleep;
+bool g_hpd = false;
+bool g_skip_ss_lanes = false;
+bool g_station_dp_disconnect = false;
+EXPORT_SYMBOL(g_station_sleep);
+EXPORT_SYMBOL(g_skip_ss_lanes);
+EXPORT_SYMBOL(g_station_dp_disconnect);
+
+extern bool dp_display_is_enable(void);
+/* ASUS BSP DP --- */
+
 enum dp_usbpd_pin_assignment {
 	DP_USBPD_PIN_A,
 	DP_USBPD_PIN_B,
@@ -160,6 +178,7 @@ static void dp_usbpd_get_status(struct dp_usbpd_private *pd)
 			status->exit_dp_mode, status->base.hpd_high);
 	DP_DEBUG("hpd_irq = %d\n", status->base.hpd_irq);
 
+	g_hpd = status->base.hpd_high; /* ASUS BSP DP +++ */
 	dp_usbpd_init_port(&status->port, port);
 }
 
@@ -263,10 +282,13 @@ static void dp_usbpd_disconnect_cb(struct usbpd_svid_handler *hdlr)
 
 	pd->alt_mode = DP_USBPD_ALT_MODE_NONE;
 	pd->dp_usbpd.base.alt_mode_cfg_done = false;
-	DP_DEBUG("\n");
+	/* ASUS BSP DP +++ */
+	DP_LOG("%s\n", __func__);
 
-	if (pd->dp_cb && pd->dp_cb->disconnect)
+	if (pd->dp_cb && pd->dp_cb->disconnect) {
+		g_hpd = false; /* ASUS BSP DP +++ */
 		pd->dp_cb->disconnect(pd->dev);
+	}
 }
 
 static int dp_usbpd_validate_callback(u8 cmd,
@@ -314,6 +336,14 @@ static int dp_usbpd_get_ss_lanes(struct dp_usbpd_private *pd)
 	int rc = 0;
 	int timeout = 250;
 
+	/* ASUS BSP DP, ss lanes still keeping because self reconnect in dp +++*/
+	if (g_skip_ss_lanes) {
+		g_skip_ss_lanes = false;
+		DP_LOG("skip request ss lanes.\n");
+		return rc;
+	}
+	/* ASUS BSP DP, ss lanes still keeping because self reconnect in dp ---*/
+
 	/*
 	 * By default, USB reserves two lanes for Super Speed.
 	 * Which means DP has remaining two lanes to operate on.
@@ -324,6 +354,14 @@ static int dp_usbpd_get_ss_lanes(struct dp_usbpd_private *pd)
 	 */
 	if (!pd->dp_usbpd.base.multi_func) {
 		while (timeout) {
+			/* ASUS BSP DP +++ */
+			/* To sync usb host if not DT dock */
+			if (gDongleType != 3) {
+				if (!wait_for_completion_timeout(&usb_host_complete1, HZ * 2))
+					DP_LOG("usb host timeout\n");
+			}
+			/* ASUS BSP DP --- */
+			
 			rc = pd->svid_handler.request_usb_ss_lane(
 					pd->pd, &pd->svid_handler);
 			if (rc != -EBUSY)
@@ -337,6 +375,7 @@ static int dp_usbpd_get_ss_lanes(struct dp_usbpd_private *pd)
 		}
 	}
 
+	DP_LOG("%s: multi_func=%d, rc=%d\n", __func__, pd->dp_usbpd.base.multi_func, rc);
 	return rc;
 }
 
@@ -349,7 +388,8 @@ static void dp_usbpd_response_cb(struct usbpd_svid_handler *hdlr, u8 cmd,
 
 	pd = container_of(hdlr, struct dp_usbpd_private, svid_handler);
 
-	DP_DEBUG("callback -> cmd: %s, *vdos = 0x%x, num_vdos = %d\n",
+	/* ASUS BSP DP +++ */
+	DP_LOG("callback -> cmd: %s, *vdos = 0x%x, num_vdos = %d\n",
 				dp_usbpd_cmd_name(cmd), *vdos, num_vdos);
 
 	if (dp_usbpd_validate_callback(cmd, cmd_type, num_vdos)) {
@@ -559,6 +599,11 @@ struct dp_hpd *dp_usbpd_get(struct device *dev, struct dp_hpd_cb *cb)
 	dp_usbpd->base.register_hpd = dp_usbpd_register;
 	dp_usbpd->base.wakeup_phy = dp_usbpd_wakeup_phy;
 
+	/* ASUS BSP DP +++ */
+	asus_usbpd = usbpd;
+	mutex_init(&asus_gs_mutex);
+	/* ASUS BSP DP --- */
+
 	return &dp_usbpd->base;
 error:
 	return ERR_PTR(rc);
@@ -579,3 +624,99 @@ void dp_usbpd_put(struct dp_hpd *dp_hpd)
 
 	devm_kfree(usbpd->dev, usbpd);
 }
+
+/* ASUS BSP DP +++ */
+void asus_dp_disconnect(void)
+{
+	DP_LOG("DP self disconnect. gDongleType(%d)\n", gDongleType);
+
+	/* RETURN if DP_STATE_CONFIGURED but not DP_STATE_ENABLED
+	 * waiting for connect process done
+	 */
+	if (!(dp_display_is_enable())) {
+		DP_LOG("return asus_dp_disconnect\n");
+		return;
+	}
+
+	if(asus_usbpd->svid_handler.discovered){
+		asus_usbpd->svid_handler.disconnect(&asus_usbpd->svid_handler);
+		asus_usbpd->svid_handler.discovered = false;
+	}
+	usbpd_unregister_svid(asus_usbpd->pd, &asus_usbpd->svid_handler);
+
+	if (gDongleType == 2)
+		g_skip_ss_lanes = true;
+}
+
+void asus_dp_connect(void)
+{
+	int rc = 0;
+	DP_LOG("DP self connect. gDongleType(%d)\n", gDongleType);
+
+	rc = usbpd_register_svid(asus_usbpd->pd, &asus_usbpd->svid_handler);
+	if (rc)
+		DP_LOG("svid is registered\n");
+}
+
+//type = 0, call from lid
+//type = 1, call from display on/off
+//type = 2, call from usb
+//type = 4, call from ec firmware update
+void asus_dp_change_state(bool mode, int type)
+{
+	static bool virtual_remove = false;
+
+	DP_LOG("state changed, mode=%d, type=%d\n", mode, type);
+
+	mutex_lock(&asus_gs_mutex);
+	if ((type == 0 || type == 2) && gDongleType == 2)
+	{
+		if (mode) {
+			if (g_station_sleep || type == 2){
+				//hid_to_set_ultra_power_mode(0);
+				g_station_dp_disconnect = false;
+				asus_dp_connect();
+				virtual_remove = false;
+			}
+		} else {
+			if (g_station_sleep || type == 2){
+				asus_dp_disconnect();
+				virtual_remove = true;
+				g_station_dp_disconnect = true;
+				//hid_to_set_ultra_power_mode(1);
+			}
+		}
+	} else if (type == 1) {
+		int prodock = get_prodock_state();
+		static bool needConnect = false;
+
+		if (mode) {
+			if (needConnect) {
+				asus_dp_connect();
+				needConnect = false;
+			}
+		} else if (prodock != 0){
+			if (!g_hpd) {
+				asus_dp_disconnect();
+				needConnect = true;
+			}
+		}
+	} else if (type == 4) {
+		if (mode) {
+			asus_dp_connect();
+		} else {
+			asus_dp_disconnect();
+		}
+	} else if (type == 0 && gDongleType == 200 && mode && virtual_remove) {
+		DP_LOG("DP register after DP disconnect when covered\n");
+		g_station_dp_disconnect = false;
+		asus_dp_connect();
+		g_skip_ss_lanes = false;
+		virtual_remove = false;
+	}
+	mutex_unlock(&asus_gs_mutex);
+
+	return;
+}
+EXPORT_SYMBOL(asus_dp_change_state);
+// ASUS BSP DP ---

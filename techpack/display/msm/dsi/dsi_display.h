@@ -271,7 +271,33 @@ struct dsi_display {
 	u32 clk_gating_config;
 	bool queue_cmd_waits;
 	struct workqueue_struct *dma_cmd_workq;
+
+	int asus_fod_exi1_gpio;
+	int asus_fod_exi2_gpio;
 };
+
+/* ASUS BSP Display +++ */
+static struct dsi_display* g_display;
+static inline bool asus_display_valid(void)
+{
+	if (!g_display) {
+		printk("[Display][%pS] g_display is not valid.\n", __builtin_return_address(0));
+		return false;
+	}
+	return true;
+}
+
+static inline bool asus_display_panel_valid(void)
+{
+	if (!g_display || !g_display->panel) {
+		printk("[Display][%pS] display or panel is not valid.\n", __builtin_return_address(0));
+		return false;
+	}
+	return true;
+}
+
+int dsi_display_asus_dfps(struct dsi_display *display, int type);
+/* ASUS BSP Display --- */
 
 int dsi_display_dev_probe(struct platform_device *pdev);
 int dsi_display_dev_remove(struct platform_device *pdev);

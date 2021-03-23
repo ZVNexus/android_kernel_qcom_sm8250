@@ -859,6 +859,7 @@ int sde_power_clk_set_rate(struct sde_power_handle *phandle, char *clock_name,
 	}
 
 	mutex_lock(&phandle->phandle_lock);
+#if 0
 	if (phandle->last_event_handled & SDE_POWER_EVENT_POST_DISABLE) {
 		pr_debug("invalid power state %u\n",
 				phandle->last_event_handled);
@@ -866,7 +867,7 @@ int sde_power_clk_set_rate(struct sde_power_handle *phandle, char *clock_name,
 		mutex_unlock(&phandle->phandle_lock);
 		return -EINVAL;
 	}
-
+#endif
 	mp = &phandle->mp;
 
 	for (i = 0; i < mp->num_clk; i++) {

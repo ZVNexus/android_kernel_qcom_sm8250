@@ -32,6 +32,57 @@
 #define DEFAULT_PANEL_PREFILL_LINES	25
 #define MIN_PREFILL_LINES      35
 
+#define ASUS_AOD_THRES      257
+
+//Bottom USB RT1715 +++
+extern void rt_send_screen_suspend(void);
+//Bottom USB RT1715 ---
+
+// ASUS_BSP +++ Touch
+extern void phone_touch_resume(void);
+extern void phone_touch_suspend(void);
+// ASUS_BSP --- Touch
+
+/*
+ * ASUS ROG3 display protocol panel functions
+ */
+extern bool asus_display_in_aod(void);
+extern bool asus_display_in_normal_off(void);
+extern void asus_display_wait_for_vsync(void);
+extern char asus_var_osc_reg_p20_value;
+extern bool asus_var_regulator_always_on;
+static bool asus_var_regulator_last_on = true;
+extern bool asus_var_global_hbm_pending;
+extern int  has_pxlw_video_blocker;
+
+extern int asus_current_fps;
+extern int asus_alpm_bl_high;
+extern int asus_alpm_bl_low;
+
+/* ASUS BSP DP +++ */
+int lastBL = 1023;
+extern uint8_t gDongleType;
+extern int ec_i2c_pd_set_display_bl(int bl_lvl);
+
+char *get_last_backlight_value(void)
+{
+	static char brightness[2];
+
+	brightness[0] = (char)(lastBL & 0xFF);
+	brightness[1] = (char)((lastBL >> 8) & 0xFF);
+	pr_err("[EC_I2C] i2c_set_display_bl brightness : 0x%x,0x%x\n",brightness[0],brightness[1]);
+
+	return brightness;
+}
+EXPORT_SYMBOL(get_last_backlight_value);
+
+extern int g_station_hbm_mode;
+extern int ec_i2c_set_hbm(char enable);
+
+extern void dp_panel_resume(void);
+extern void dp_panel_suspend(void);
+/* ASUS BSP DP --- */
+
 enum dsi_dsc_ratio_type {
 	DSC_8BPC_8BPP,
 	DSC_10BPC_8BPP,
@@ -449,11 +500,16 @@ static int dsi_panel_power_on(struct dsi_panel *panel)
 {
 	int rc = 0;
 
-	rc = dsi_pwr_enable_regulator(&panel->power_info, true);
-	if (rc) {
-		DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
-				panel->name, rc);
-		goto exit;
+	pr_err("[Display] panel power on +++\n");
+
+	if (asus_var_regulator_last_on == false) {
+		rc = dsi_pwr_enable_regulator(&panel->power_info, true);
+		if (rc) {
+			DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
+					panel->name, rc);
+			goto exit;
+		}
+		asus_var_regulator_last_on = true;
 	}
 
 	rc = dsi_panel_set_pinctrl_state(panel, true);
@@ -467,6 +523,12 @@ static int dsi_panel_power_on(struct dsi_panel *panel)
 		DSI_ERR("[%s] failed to reset panel, rc=%d\n", panel->name, rc);
 		goto error_disable_gpio;
 	}
+
+	// ASUS_BSP +++ Touch
+	phone_touch_resume();
+	// ASUS_BSP --- Touch
+
+	dp_panel_resume(); /* ASUS BSP DP +++ */
 
 	goto exit;
 
@@ -483,12 +545,16 @@ error_disable_vregs:
 	(void)dsi_pwr_enable_regulator(&panel->power_info, false);
 
 exit:
+
+	pr_err("[Display] panel power on ---\n");
 	return rc;
 }
 
 static int dsi_panel_power_off(struct dsi_panel *panel)
 {
 	int rc = 0;
+
+	pr_err("[Display] panel power off +++\n");
 
 	if (gpio_is_valid(panel->reset_config.disp_en_gpio))
 		gpio_set_value(panel->reset_config.disp_en_gpio, 0);
@@ -511,11 +577,27 @@ static int dsi_panel_power_off(struct dsi_panel *panel)
 		DSI_ERR("[%s] failed set pinctrl state, rc=%d\n", panel->name,
 		       rc);
 	}
+	
+	// ASUS_BSP +++ Touch
+	phone_touch_suspend();
+	// ASUS_BSP --- Touch
+
+	dp_panel_suspend(); /* ASUS BSP DP +++ */
+
+	if (asus_var_regulator_always_on)
+		return rc;
+
+	//Bottom USB RT1715 +++
+	rt_send_screen_suspend();
+	//Bottom USB RT1715 ---
 
 	rc = dsi_pwr_enable_regulator(&panel->power_info, false);
 	if (rc)
 		DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
 				panel->name, rc);
+
+	asus_var_regulator_last_on = false;
+
 
 	return rc;
 }
@@ -546,6 +628,12 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 	}
 
 	for (i = 0; i < count; i++) {
+		char* mipi_cmd = (char*) cmds->msg.tx_buf;
+		int mipi_len = cmds->msg.tx_len;
+		int duty_index[2] = {0x83, 0x84};
+		int duty_60[2] = {0x09, 0xA4}; //for HBM
+		int duty_98[2] = {0x0F, 0xC3}; //for other
+
 		if (state == DSI_CMD_SET_STATE_LP)
 			cmds->msg.flags |= MIPI_DSI_MSG_USE_LPM;
 
@@ -555,12 +643,29 @@ static int dsi_panel_tx_cmd_set(struct dsi_panel *panel,
 		if (type == DSI_CMD_SET_VID_TO_CMD_SWITCH)
 			cmds->msg.flags |= MIPI_DSI_MSG_ASYNC_OVERRIDE;
 
+		// change FPS where HBM mode is on
+		// we need to modify the last 3nd and 2nd arguments in cmd 0xCF
+		// to duty_60
+		if (mipi_len == 0x86 && mipi_cmd[0] == 0xCF && panel->asus_hbm_mode) {
+			pr_err("[Display] detect changing fps while hbm on, set duty 60\n");
+			mipi_cmd[duty_index[0]] = duty_60[0];
+			mipi_cmd[duty_index[1]] = duty_60[1];
+		}
+
 		len = ops->transfer(panel->host, &cmds->msg);
 		if (len < 0) {
 			rc = len;
 			DSI_ERR("failed to set cmds(%d), rc=%d\n", type, rc);
 			goto error;
 		}
+
+		// change it back
+		if (mipi_len == 0x86 && mipi_cmd[0] == 0xCF && panel->asus_hbm_mode) {
+			pr_err("[Display] restore command to duty 98\n");
+			mipi_cmd[duty_index[0]] = duty_98[0];
+			mipi_cmd[duty_index[1]] = duty_98[1];
+		}
+
 		if (cmds->post_wait_ms)
 			usleep_range(cmds->post_wait_ms*1000,
 					((cmds->post_wait_ms*1000)+10));
@@ -633,6 +738,30 @@ static int dsi_panel_wled_register(struct dsi_panel *panel,
 	return 0;
 }
 
+int asus_display_convert_backlight(struct dsi_panel *panel, int bl_lvl)
+{
+	int backlight_converted = bl_lvl;
+
+	if (asus_display_in_aod() && !panel->asus_global_hbm_mode) {
+		if (bl_lvl >= ASUS_AOD_THRES) {
+			panel->asus_last_user_aod_bl = bl_lvl;
+			backlight_converted = asus_alpm_bl_high;
+			pr_err("[Display] convert to %d, reason AOD\n", asus_alpm_bl_high);
+		} else if (bl_lvl < ASUS_AOD_THRES && bl_lvl > 1){
+			panel->asus_last_user_aod_bl = bl_lvl;
+			backlight_converted = asus_alpm_bl_low;
+			pr_err("[Display] convert to %d, reason AOD\n", asus_alpm_bl_low);
+		}
+	} else if (bl_lvl < 400 && !has_pxlw_video_blocker) {
+		pr_err("[Display] convert to 400, reason pixelworks\n");
+		backlight_converted = 400;
+	} else if (has_pxlw_video_blocker) {
+		pr_err("[Display] do not convert backlight, reason pixelworks video blocker\n");
+	}
+
+	return backlight_converted;
+}
+
 static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	u32 bl_lvl)
 {
@@ -643,6 +772,22 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 		DSI_ERR("invalid params\n");
 		return -EINVAL;
 	}
+
+	pr_err("[Display] request bl=%d\n", bl_lvl);
+
+	/* ASUS BSP DP, bl for station +++ */
+	if (gDongleType == 2) {
+		if (asus_display_in_aod() && bl_lvl == 1)
+			pr_err("[msm-dp] skip bl to station in doze\n");
+		else
+			ec_i2c_pd_set_display_bl(bl_lvl);
+	}
+
+	if (bl_lvl != 0)
+		lastBL = (int)bl_lvl;
+	/* ASUS BSP DP, bl for station --- */
+
+	bl_lvl = asus_display_convert_backlight(panel, bl_lvl);
 
 	dsi = &panel->mipi_device;
 
@@ -1449,6 +1594,8 @@ static int dsi_panel_parse_dfps_caps(struct dsi_panel *panel)
 			dfps_caps->max_refresh_rate = dfps_caps->dfps_list[i];
 	}
 
+	pr_err("[Display] dfps enabled, min %d, max %d\n", dfps_caps->min_refresh_rate, dfps_caps->max_refresh_rate);
+
 error:
 	return rc;
 }
@@ -1720,6 +1867,25 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command",
 	"qcom,mdss-dsi-qsync-on-commands",
 	"qcom,mdss-dsi-qsync-off-commands",
+	/* ASUS BSP Display +++ */
+	"qcom,mdss-dsi-switch-160fps-command",
+	"qcom,mdss-dsi-switch-144fps-command",
+	"qcom,mdss-dsi-switch-120fps-command",
+	"qcom,mdss-dsi-switch-90fps-command",
+	"qcom,mdss-dsi-switch-60fps-command",
+	"qcom,mdss-dsi-osc-command",
+	"qcom,mdss-dsi-hbm-on-command",
+	"qcom,mdss-dsi-hbm-off-command",
+	"qcom,mdss-dsi-global-hbm-on-command",
+	"qcom,mdss-dsi-global-hbm-off-command",
+	"qcom,mdss-dsi-local-hbm-on-command",
+	"qcom,mdss-dsi-local-hbm-off-command",
+	"asus,bus-qrcode-dim-mode-160fps-command",
+	"asus,bus-qrcode-dim-mode-144fps-command",
+	"asus,bus-qrcode-dim-mode-120fps-command",
+	"asus,bus-qrcode-dim-mode-90fps-command",
+	"asus,bus-qrcode-dim-mode-60fps-command",
+	/* ASUS BSP Display --- */
 };
 
 const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
@@ -1746,6 +1912,25 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"qcom,mdss-dsi-post-mode-switch-on-command-state",
 	"qcom,mdss-dsi-qsync-on-commands-state",
 	"qcom,mdss-dsi-qsync-off-commands-state",
+	/* ASUS BSP Display +++ */
+	"qcom,mdss-dsi-switch-fps-command-state",
+	"qcom,mdss-dsi-switch-fps-command-state",
+	"qcom,mdss-dsi-switch-fps-command-state",
+	"qcom,mdss-dsi-switch-fps-command-state",
+	"qcom,mdss-dsi-switch-fps-command-state",
+	"qcom,mdss-dsi-osc-command-state",
+	"qcom,mdss-dsi-hbm-on-command-state",
+	"qcom,mdss-dsi-hbm-off-command-state",
+	"qcom,mdss-dsi-global-hbm-on-command-state",
+	"qcom,mdss-dsi-global-hbm-off-command-state",
+	"qcom,mdss-dsi-global-hbm-on-command-state",
+	"qcom,mdss-dsi-global-hbm-off-command-state",
+	"asus,bus-qrcode-dim-mode-command-state",
+	"asus,bus-qrcode-dim-mode-command-state",
+	"asus,bus-qrcode-dim-mode-command-state",
+	"asus,bus-qrcode-dim-mode-command-state",
+	"asus,bus-qrcode-dim-mode-command-state",
+	/* ASUS BSP Display --- */
 };
 
 static int dsi_panel_get_cmd_pkt_count(const char *data, u32 length, u32 *cnt)
@@ -2151,6 +2336,8 @@ static int dsi_panel_parse_gpios(struct dsi_panel *panel)
 		if (!gpio_is_valid(panel->reset_config.disp_en_gpio)) {
 			DSI_DEBUG("[%s] platform-en-gpio is not set, rc=%d\n",
 				 panel->name, rc);
+		} else {
+			pr_err("[Display] succesfully register enable GPIO %d\n", panel->reset_config.disp_en_gpio);
 		}
 	}
 
@@ -3216,6 +3403,50 @@ error:
 	return rc;
 }
 
+static int dsi_panel_parse_asus_dtsi_attributes(struct dsi_panel *panel,
+				struct dsi_parser_utils *utils)
+{
+	const char *dtsi_code_ver;
+	const char *dtsi_code_desc;
+	u64 tmp64 = 0;
+	int rc = 0;
+
+	if (!panel || !utils)
+		return -EINVAL;
+
+	rc = utils->read_u64(utils->data,
+			"asus,mdss-dsi-panel-boost-clockrate", &tmp64);
+	if (rc == -EOVERFLOW) {
+		tmp64 = 0;
+		rc = utils->read_u32(utils->data,
+			"asus,mdss-dsi-panel-boost-clockrate", (u32 *)&tmp64);
+	}
+	panel->asus_boost_panel_clock_rate_hz = !rc ? tmp64 : 0;
+	printk("[Display] parsed boost panel clock rate hz = %lld\n", panel->asus_boost_panel_clock_rate_hz);
+
+	dtsi_code_ver = utils->get_property(utils->data,
+			"asus,mdss-dsi-command-version", NULL);
+	if (dtsi_code_ver) {
+		strncpy(panel->asus_initial_code_version, dtsi_code_ver, sizeof(panel->asus_initial_code_version));
+		printk("[Display] initial code version %s\n", panel->asus_initial_code_version);
+	} else {
+		strncpy(panel->asus_initial_code_version, "Unknown", sizeof(panel->asus_initial_code_version));
+		printk("[Display] fail to parse command version\n");
+	}
+
+	dtsi_code_desc = utils->get_property(utils->data,
+			"asus,mdss-dsi-command-description", NULL);
+	if (dtsi_code_desc) {
+		strncpy(panel->asus_initial_code_description, dtsi_code_desc, sizeof(panel->asus_initial_code_description));
+		printk("[Display] initial code description %s\n", panel->asus_initial_code_description);
+	} else {
+		strncpy(panel->asus_initial_code_description, "Unknown", sizeof(panel->asus_initial_code_description));
+		printk("[Display] fail to parse command description\n");
+	}
+
+	return 0;
+}
+
 static void dsi_panel_update_util(struct dsi_panel *panel,
 				  struct device_node *parser_node)
 {
@@ -3262,6 +3493,8 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 				"qcom,mdss-dsi-panel-name", NULL);
 	if (!panel->name)
 		panel->name = DSI_PANEL_DEFAULT_LABEL;
+
+	printk("[Display] initial of panel, name: %s\n", panel->name);
 
 	/*
 	 * Set panel type to LCD as default.
@@ -3348,7 +3581,7 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 	if (rc)
 		DSI_DEBUG("failed to parse esd config, rc=%d\n", rc);
 
-	panel->power_mode = SDE_MODE_DPMS_OFF;
+	panel->power_mode = SDE_MODE_DPMS_ON;
 	drm_panel_init(&panel->drm_panel);
 	panel->drm_panel.dev = &panel->mipi_device.dev;
 	panel->mipi_device.dev.of_node = of_node;
@@ -3358,6 +3591,16 @@ struct dsi_panel *dsi_panel_get(struct device *parent,
 		goto error;
 
 	mutex_init(&panel->panel_lock);
+
+	// Asus panel paramter initialize
+	panel->panel_ready_for_cmd = false;
+	panel->asus_hbm_mode = 0;
+	panel->asus_dim_mode = 0;
+	panel->asus_bl_delay = 0;
+	panel->asus_global_hbm_mode = 0;
+	panel->asus_local_hbm_mode = 0;
+	panel->panel_first_bootup = true;
+	panel->asus_last_user_aod_bl = 0;
 
 	return panel;
 error:
@@ -3549,8 +3792,11 @@ int dsi_panel_get_mode_count(struct dsi_panel *panel)
 					panel->dyn_clk_caps.bit_clk_list_len;
 
 	/* Inflate num_of_modes by fps and bit clks in dfps */
-	panel->num_display_modes = (num_cmd_modes * num_bit_clks) +
+	panel->num_display_modes = (num_cmd_modes * num_bit_clks * num_dfps_rates) +
 			(num_video_modes * num_bit_clks * num_dfps_rates);
+
+	printk("[Display] num_dfps_rates %d, num_bit_clks %d, num_display_modes %d\n",
+				num_dfps_rates, num_bit_clks, panel->num_display_modes);
 
 error:
 	return rc;
@@ -3765,6 +4011,12 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			goto parse_fail;
 		}
 
+		// parse asus initial code version
+		rc = dsi_panel_parse_asus_dtsi_attributes(panel, utils);
+		if (rc) {
+			printk("failed to parse asus command params, rc=%d\n", rc);
+		}
+
 		rc = dsi_panel_parse_topology(prv_info, utils,
 				topology_override);
 		if (rc) {
@@ -3952,6 +4204,11 @@ int dsi_panel_set_lp1(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP1 cmd, rc=%d\n",
 		       panel->name, rc);
+
+	//Bottom USB RT1715 +++
+	rt_send_screen_suspend();
+	//Bottom USB RT1715 ---
+
 exit:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
@@ -3974,6 +4231,11 @@ int dsi_panel_set_lp2(struct dsi_panel *panel)
 	if (rc)
 		DSI_ERR("[%s] failed to send DSI_CMD_SET_LP2 cmd, rc=%d\n",
 		       panel->name, rc);
+
+	//Bottom USB RT1715 +++
+	rt_send_screen_suspend();
+	//Bottom USB RT1715 ---
+
 exit:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
@@ -4473,3 +4735,311 @@ error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
+
+/*
+ * ASUS ROG3 display protocol panel functions
+ */
+/*
+ * dsi_panel_asus_switch_fps
+ * send corresponding panel command to switch fps
+ * @type
+ * 0: 120 fps
+ * 1: 90  fps
+ * 2: 60  fps
+ * 3: 144 fps
+ * 4: 160 fps
+*/
+int dsi_panel_asus_switch_fps(struct dsi_panel *panel, int type)
+{
+	int rc = 0;
+	enum dsi_cmd_set_type cmd_type;
+
+	if (!panel || !panel->dfps_caps.dfps_support || asus_display_in_normal_off()) {
+		pr_err("[Display] invalid operation to set fps\n");
+		return -EINVAL;
+	}
+
+	printk("[Display] set panel fps cmd, type %d\n", type);
+
+	asus_display_wait_for_vsync();
+
+	mutex_lock(&panel->panel_lock);
+
+	if (type == 2)
+		cmd_type = DSI_CMD_SET_60;
+	else if (type == 1)
+		cmd_type = DSI_CMD_SET_90;
+	else if (type == 0)
+		cmd_type = DSI_CMD_SET_120;
+	else if (type == 3)
+		cmd_type = DSI_CMD_SET_144;
+	else if (type == 4)
+		cmd_type = DSI_CMD_SET_160;
+
+	rc = dsi_panel_tx_cmd_set(panel, cmd_type);
+	if (rc) {
+		pr_err("[%s] failed to send DSI_CMD_SET_ASUS cmds, rc=%d\n",
+			panel->name, rc);
+	}
+
+	rc = dsi_panel_set_osc(panel);
+	if (rc) {
+		pr_err("[%s] failed to send OSC cmds, rc=%d\n",
+			panel->name, rc);
+	}
+
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+/*
+ * dsi_panel_set_osc
+ * send oscillator related command for ROG3 panel
+ */
+int dsi_panel_set_osc(struct dsi_panel *panel)
+{
+	int rc = 0;
+	struct dsi_display_mode *mode;
+	struct dsi_cmd_desc *cmds;
+	u32 count;
+
+	static char set_cmd[3] = {0xE4, 0x00, 0x00};
+	struct mipi_dsi_msg tcon_cmd = {0, 0x39, 0, 0, 0, sizeof(set_cmd), set_cmd, 0, NULL};
+
+	if (!panel || !panel->cur_mode) {
+		pr_err("[Display] invalid\n");
+		return -EINVAL;
+	}
+
+	mode = panel->cur_mode;
+	cmds = mode->priv_info->cmd_sets[DSI_CMD_SET_OSC].cmds;
+	count = mode->priv_info->cmd_sets[DSI_CMD_SET_OSC].count;
+	cmds++;
+	cmds++;
+
+	set_cmd[2] = asus_var_osc_reg_p20_value;
+
+	cmds->msg = tcon_cmd;
+
+	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_OSC);
+	if (rc) {
+		pr_err("[%s] failed to send DSI_CMD_SET_ASUS cmds, rc=%d\n",
+			panel->name, rc);
+	}
+
+	return rc;
+}
+
+/*
+ * dsi_panel_set_idle
+ * send LP1 or NOLP command to panel, normally this is for debug only
+ * but can be called from FOD sequence
+ */
+int dsi_panel_set_idle(struct dsi_panel *panel, bool enter)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	if (!panel->panel_initialized)
+		goto exit;
+
+	if (enter) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_LP1);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_LP1 cmd, rc=%d\n",
+			       panel->name, rc);
+	} else {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_NOLP);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_NOLP cmd, rc=%d\n",
+			       panel->name, rc);
+	}
+exit:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+/*
+ * dsi_panel_bl_delay
+ * config the global backlight delay time by current fps
+ * this delay time is used for fixing irregular backlight effect
+ * it will be set on every backlight changing
+ */
+void dsi_panel_bl_delay(struct dsi_panel* panel)
+{
+	if (!panel) {
+		pr_err("[Display] invalid paramters \n");
+	}
+
+	if (asus_current_fps >= 60 && asus_current_fps < 90)
+		panel->asus_bl_delay = 140000;
+	else if (asus_current_fps >= 90 && asus_current_fps < 120)
+		panel->asus_bl_delay = 90000;
+	else if (asus_current_fps == 120)
+		panel->asus_bl_delay = 65000;
+	else if (asus_current_fps == 144)
+		panel->asus_bl_delay = 55000;
+	else if (asus_current_fps == 160)
+		panel->asus_bl_delay = 55000;
+}
+
+/*
+ * dsi_panel_set_hbm
+ * send global HBM (high brightness mode) command to panel
+ */
+int dsi_panel_set_hbm(struct dsi_panel *panel, bool enable)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	if (!panel->panel_initialized)
+		goto exit;
+
+	if (enable) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM_ON);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_HBM_ON cmd, rc=%d\n",
+			       panel->name, rc);
+	} else {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_HBM_OFF);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_HBM_OFF cmd, rc=%d\n",
+			       panel->name, rc);
+	}
+
+	/* ASUS BSP DP, hbm for station +++ */
+	g_station_hbm_mode = (int) enable;
+	if (gDongleType == 2) 
+		ec_i2c_set_hbm(enable);
+	/* ASUS BSP DP, hbm for station --- */
+
+exit:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+/*
+ * dsi_panel_set_global_hbm
+ * send global HBM (high brightness mode) command to panel
+ * pretty much the same with the above one
+ */
+int dsi_panel_set_global_hbm(struct dsi_panel *panel, bool enable)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	if (!panel->panel_initialized)
+		goto exit;
+
+	if (enable) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_GLOBAL_HBM_ON);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_GLOBAL_HBM_ON cmd, rc=%d\n",
+			       panel->name, rc);
+	} else {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_GLOBAL_HBM_OFF);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_GLOBAL_HBM_OFF cmd, rc=%d\n",
+			       panel->name, rc);
+	}
+exit:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+/*
+ * dsi_panel_set_local_hbm
+ * send local HBM (high brightness mode) command to panel
+ */
+int dsi_panel_set_local_hbm(struct dsi_panel *panel, bool enable)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	if (!panel->panel_initialized)
+		goto exit;
+
+	if (enable) {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_LOCAL_HBM_ON);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_LOCAL_HBM_ON cmd, rc=%d\n",
+			       panel->name, rc);
+	} else {
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_LOCAL_HBM_OFF);
+		if (rc)
+			pr_err("[%s] failed to send DSI_CMD_SET_LOCAL_HBM_OFF cmd, rc=%d\n",
+			       panel->name, rc);
+	}
+exit:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+
+/*
+ * dsi_panel_set_bus_dim
+ * send bus dimming command for QRCode scanning
+ */
+int dsi_panel_set_bus_dim(struct dsi_panel *panel, int refresh_rate)
+{
+	int rc = 0;
+
+	if (!panel) {
+		pr_err("invalid params\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&panel->panel_lock);
+	if (!panel->panel_initialized)
+		goto exit;
+
+	switch(refresh_rate) {
+	case 160:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DIM_160);
+		break;
+	case 144:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DIM_144);
+		break;
+	case 120:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DIM_120);
+		break;
+	case 90:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DIM_90);
+		break;
+	case 60:
+		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DIM_60);
+		break;
+	default:
+		pr_err("[Display] error, could not find bus dim cmd for fps %d\n", refresh_rate);
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	if (rc)
+		pr_err("[%s] failed to send bus dim cmd for fps %d, rc=%d\n",
+		       panel->name, refresh_rate, rc);
+exit:
+	mutex_unlock(&panel->panel_lock);
+	return rc;
+}
+/* ASUS ROG3 display protocol panel functions --- */
+

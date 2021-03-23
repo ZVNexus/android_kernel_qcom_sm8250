@@ -26,6 +26,12 @@
 #define MAX_VOLTAGE_LEVELS 4
 #define MAX_PRE_EMP_LEVELS 4
 
+/* ASUS BSP DP +++ */
+extern int gDongleType;
+extern int asus_current_fps;
+extern struct dp_debug *asus_debug;
+/* ASUS BSP DP --- */
+
 static u8 const vm_pre_emphasis[MAX_VOLTAGE_LEVELS][MAX_PRE_EMP_LEVELS] = {
 	{0x00, 0x0E, 0x16, 0xFF},       /* pe0, 0 db */
 	{0x00, 0x0E, 0x16, 0xFF},       /* pe1, 3.5 db */
@@ -271,6 +277,36 @@ static void dp_catalog_ctrl_update_vx_px_v420(struct dp_catalog_ctrl *ctrl,
 	io_data = catalog->io->dp_ln_tx1;
 	dp_write(TXn_TX_DRV_LVL_V420, 0x2A);
 	dp_write(TXn_TX_EMP_POST1_LVL, 0x20);
+
+	/* ASUS BSP DP +++ */
+	// for station
+	if (asus_current_fps >= 120 && gDongleType == 2 && v_level == 0 && p_level == 0) {
+		if (asus_debug->debug_swing != 0) {
+			DP_LOG("debug_swing is 0x%x\n", asus_debug->debug_swing);
+			value0 = asus_debug->debug_swing;
+		} else {
+			value0 = 0x10; /* tuned from Yoda */
+		}
+
+		if (asus_debug->debug_pre_emp != 0) {
+			DP_LOG("debug_pre_emp is 0x%x\n", asus_debug->debug_pre_emp);
+			value1 = asus_debug->debug_pre_emp;
+		}
+	}
+
+	// for external monitor
+	if (asus_debug->debug_lt) {
+		if (asus_debug->debug_swing != 0) {
+			DP_LOG("debug_lt = %d, debug_swing is 0x%x\n", asus_debug->debug_lt, asus_debug->debug_swing);
+			value0 = asus_debug->debug_swing;
+		}
+
+		if (asus_debug->debug_pre_emp != 0) {
+			DP_LOG("debug_lt = %d, debug_pre_emp is 0x%x\n", asus_debug->debug_lt, asus_debug->debug_pre_emp);
+			value1 = asus_debug->debug_pre_emp;
+		}
+	}
+	/* ASUS BSP DP --- */
 
 	/* Enable MUX to use Cursor values from these registers */
 	value0 |= BIT(5);
