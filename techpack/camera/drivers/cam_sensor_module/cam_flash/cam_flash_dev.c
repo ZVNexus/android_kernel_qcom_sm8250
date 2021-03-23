@@ -8,6 +8,7 @@
 #include "cam_flash_soc.h"
 #include "cam_flash_core.h"
 #include "cam_common_util.h"
+#include "asus_flash.h"
 
 static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		void *arg, struct cam_flash_private_soc *soc_private)
@@ -33,15 +34,17 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 	case CAM_ACQUIRE_DEV: {
 		struct cam_sensor_acquire_dev flash_acq_dev;
 		struct cam_create_dev_hdl bridge_params;
-
+		asus_flash_set_camera_state(1);//ASUS_BSP Zhengwei "porting flash"
 		CAM_DBG(CAM_FLASH, "CAM_ACQUIRE_DEV");
 
 		if (fctrl->flash_state != CAM_FLASH_STATE_INIT) {
 			CAM_ERR(CAM_FLASH,
 				"Cannot apply Acquire dev: Prev state: %d",
 				fctrl->flash_state);
+#ifndef CAM_FACTORY_CONFIG
 			rc = -EINVAL;
 			goto release_mutex;
+#endif
 		}
 
 		if (fctrl->bridge_intf.device_hdl != -1) {
@@ -80,7 +83,15 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 			rc = -EFAULT;
 			goto release_mutex;
 		}
+		CAM_INFO(CAM_FLASH,
+			"CAM_ACQUIRE_DEV flash_acq_dev.device_handle %d fctrl:%d fctrl->pdev:%d change state from %d to %d",
+			flash_acq_dev.device_handle,
+			fctrl,
+			fctrl->pdev,
+			fctrl->flash_state,
+			CAM_FLASH_STATE_ACQUIRE);//ASUS_BSP Shianliang "add log for debug"
 		fctrl->flash_state = CAM_FLASH_STATE_ACQUIRE;
+		cam_flash_copy_fctrl(fctrl); ////ASUS_BSP Shianliang add low battery checking
 		break;
 	}
 	case CAM_RELEASE_DEV: {
@@ -122,6 +133,12 @@ static int32_t cam_flash_driver_cmd(struct cam_flash_ctrl *fctrl,
 		if (fctrl->func_tbl.power_ops(fctrl, false))
 			CAM_WARN(CAM_FLASH, "Power Down Failed");
 
+		CAM_INFO(CAM_FLASH,
+			"CAM_RELEASE_DEV fctrl:%d fctrl->pdev:%d change state from %d to %d",
+			fctrl,
+			fctrl->pdev,
+			fctrl->flash_state,
+			CAM_FLASH_STATE_INIT);//ASUS_BSP Shianliang "add log for debug"
 		fctrl->flash_state = CAM_FLASH_STATE_INIT;
 		break;
 	}
@@ -356,7 +373,7 @@ static int cam_flash_subdev_close(struct v4l2_subdev *sd,
 	mutex_lock(&fctrl->flash_mutex);
 	cam_flash_shutdown(fctrl);
 	mutex_unlock(&fctrl->flash_mutex);
-
+	asus_flash_set_camera_state(0);//ASUS_BSP Zhengwei "porting flash"
 	return 0;
 }
 
@@ -403,7 +420,7 @@ static int32_t cam_flash_platform_probe(struct platform_device *pdev)
 	struct cam_flash_ctrl *fctrl = NULL;
 	struct device_node *of_parent = NULL;
 
-	CAM_DBG(CAM_FLASH, "Enter");
+	CAM_INFO(CAM_FLASH, "Flash probe Enter");
 	if (!pdev->dev.of_node) {
 		CAM_ERR(CAM_FLASH, "of_node NULL");
 		return -EINVAL;
@@ -503,7 +520,8 @@ static int32_t cam_flash_platform_probe(struct platform_device *pdev)
 	mutex_init(&(fctrl->flash_mutex));
 
 	fctrl->flash_state = CAM_FLASH_STATE_INIT;
-	CAM_DBG(CAM_FLASH, "Probe success");
+	asus_flash_init(fctrl);//ASUS_BSP Zhengwei "porting flash"
+	CAM_INFO(CAM_FLASH, "Flash probe succeed");
 	return rc;
 
 free_cci_resource:
@@ -517,6 +535,7 @@ free_resource:
 	fctrl->soc_info.soc_private = NULL;
 	kfree(fctrl);
 	fctrl = NULL;
+	CAM_INFO(CAM_FLASH, "Flash probe failed");
 	return rc;
 }
 

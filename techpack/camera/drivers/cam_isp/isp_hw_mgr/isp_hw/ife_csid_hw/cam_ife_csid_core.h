@@ -91,6 +91,22 @@ enum cam_csid_path_timestamp_stb_sel {
 	CSID_TIMESTAMP_STB_MAX,
 };
 
+//ASUS_BSP Brynat +++ "Add for camera csi debug"
+/* enum cam_csid_error_state*/
+enum cam_csid_error_state {
+	DEFAUT = 0,
+	CSID_LAN0_OVERFLOW = 1,
+	CSID_LAN1_OVERFLOW = 2,
+	CSID_LAN2_OVERFLOW = 3,
+	CSID_LAN3_OVERFLOW = 4,
+	CSID_TG_OVERFLOW = 5,
+	CSID_CPHY_PH_CRC = 6,
+	CSID_ERROR_CRC = 7,
+	CSID_ERROR_ECC = 8,
+};
+//ASUS_BSP Brynat ---"Add for camera csi debug"
+
+
 struct cam_ife_csid_pxl_reg_offset {
 	/* Pxl path register offsets*/
 	uint32_t csid_pxl_irq_status_addr;

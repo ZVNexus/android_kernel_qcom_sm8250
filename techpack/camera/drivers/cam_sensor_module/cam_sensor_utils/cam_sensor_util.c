@@ -1414,7 +1414,9 @@ int cam_get_dt_power_setting_data(struct device_node *of_node,
 			ps[i].seq_type = SENSOR_VANA;
 		} else if (!strcmp(seq_name, "cam_clk")) {
 			ps[i].seq_type = SENSOR_MCLK;
-		} else {
+		} else if (!strcmp(seq_name, "cam_vaf")){
+			ps[i].seq_type = SENSOR_VAF;
+		}else {
 			CAM_ERR(CAM_SENSOR, "unrecognized seq-type %s",
 				seq_name);
 			rc = -EILSEQ;

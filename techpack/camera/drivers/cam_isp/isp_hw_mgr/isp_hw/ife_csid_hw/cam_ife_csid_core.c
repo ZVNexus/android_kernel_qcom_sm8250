@@ -4090,6 +4090,7 @@ static int cam_ife_csid_process_cmd(void *hw_priv,
 
 }
 
+extern uint8_t g_cam_csi_check;  //ASUS_BSP Bryant "Add for camera csi debug"
 irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 {
 	struct cam_ife_csid_hw                         *csid_hw;
@@ -4219,26 +4220,31 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 0 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN0_OVERFLOW;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_LANE1_FIFO_OVERFLOW) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 1 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN1_OVERFLOW;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_LANE2_FIFO_OVERFLOW) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 2 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN2_OVERFLOW;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_LANE3_FIFO_OVERFLOW) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d lane 3 over flow",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_LAN3_OVERFLOW;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_TG_FIFO_OVERFLOW) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d TG OVER FLOW",
 				 csid_hw->hw_intf->hw_idx);
 			fatal_err_detected = true;
+			g_cam_csi_check = CSID_TG_OVERFLOW;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_CPHY_EOT_RECEPTION) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP,
@@ -4255,14 +4261,17 @@ irqreturn_t cam_ife_csid_irq(int irq_num, void *data)
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_CPHY_PH_CRC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d CPHY_PH_CRC",
 				 csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_CPHY_PH_CRC;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_CRC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d ERROR_CRC",
 				 csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_ERROR_CRC;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_ECC) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d ERROR_ECC",
 				 csid_hw->hw_intf->hw_idx);
+			g_cam_csi_check = CSID_ERROR_ECC;
 		}
 		if (irq_status_rx & CSID_CSI2_RX_ERROR_MMAPPED_VC_DT) {
 			CAM_ERR_RATE_LIMIT(CAM_ISP, "CSID:%d MMAPPED_VC_DT",
