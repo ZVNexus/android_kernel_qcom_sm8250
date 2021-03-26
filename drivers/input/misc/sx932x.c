@@ -25,50 +25,50 @@
 #include <linux/syscalls.h>
 #include <linux/wakelock.h>
 #include <linux/uaccess.h>
-#include <linux/sort.h> 
+#include <linux/sort.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
-#include "sx932x.h" 	/* main struct, interrupt,init,pointers */
+#include "sx932x.h" /* main struct, interrupt,init,pointers */
 
+#define IDLE 0
+#define ACTIVE 1
 
+#define SX932x_NIRQ 34
 
-#define IDLE			0
-#define ACTIVE			1
-
-#define SX932x_NIRQ		34
-
-#define MAIN_SENSOR		1 //CS1
+#define MAIN_SENSOR 1 //CS1
 
 /* Failer Index */
-#define SX932x_ID_ERROR 	1
-#define SX932x_NIRQ_ERROR	2
-#define SX932x_CONN_ERROR	3
-#define SX932x_I2C_ERROR	4
+#define SX932x_ID_ERROR 1
+#define SX932x_NIRQ_ERROR 2
+#define SX932x_CONN_ERROR 3
+#define SX932x_I2C_ERROR 4
 
-#define PROXOFFSET_LOW			1500
+#define PROXOFFSET_LOW 1500
 
-#define SX932x_ANALOG_GAIN		1
-#define SX932x_DIGITAL_GAIN		1
-#define SX932x_ANALOG_RANGE		2.65
+#define SX932x_ANALOG_GAIN 1
+#define SX932x_DIGITAL_GAIN 1
+#define SX932x_ANALOG_RANGE 2.65
 
-#define	TOUCH_CHECK_REF_AMB      0 // 44523
-#define	TOUCH_CHECK_SLOPE        0 // 50
-#define	TOUCH_CHECK_MAIN_AMB     0 // 151282
+#define TOUCH_CHECK_REF_AMB 0 // 44523
+#define TOUCH_CHECK_SLOPE 0 // 50
+#define TOUCH_CHECK_MAIN_AMB 0 // 151282
 
-extern int asus_extcon_set_state_sync(struct extcon_dev *edev, int cable_state); //ASUS_BSP
+extern int asus_extcon_set_state_sync(struct extcon_dev *edev,
+				      int cable_state); //ASUS_BSP
 extern bool g_is_country_code_US;
-static int g_CAP_STATUS_UEVENT = CAP_STATUS_UEVENT_NONE; //ASUS_BSP register cap_satus uevent
-static int g_CAP_STATUS_UEVENT_last = CAP_STATUS_UEVENT_NONE; //ASUS_BSP register cap_satus uevent
+static int g_CAP_STATUS_UEVENT =
+	CAP_STATUS_UEVENT_NONE; //ASUS_BSP register cap_satus uevent
+static int g_CAP_STATUS_UEVENT_last =
+	CAP_STATUS_UEVENT_NONE; //ASUS_BSP register cap_satus uevent
 
 /*! \struct sx932x
  * Specialized struct containing input event data, platform data, and
  * last cap state read if needed.
  */
-typedef struct sx932x
-{
+typedef struct sx932x {
 	pbuttonInformation_t pbuttonInformation;
-	psx932x_platform_data_t hw;		/* specific platform data settings */
+	psx932x_platform_data_t hw; /* specific platform data settings */
 } sx932x_t, *psx932x_t;
 
 static int irq_gpio_num;
@@ -92,11 +92,13 @@ static int write_register(psx93XX_t this, u8 address, u8 value)
 
 	if (this && this->bus) {
 		i2c = this->bus;
-		returnValue = i2c_master_send(i2c,buffer,2);
-		#ifdef DEBUG
-		dev_info(&i2c->dev,"write_register Address: 0x%x Value: 0x%x Return: %d\n",
-														address,value,returnValue);
-		#endif
+		returnValue = i2c_master_send(i2c, buffer, 2);
+#ifdef DEBUG
+		dev_info(
+			&i2c->dev,
+			"write_register Address: 0x%x Value: 0x%x Return: %d\n",
+			address, value, returnValue);
+#endif
 	}
 	return returnValue;
 }
@@ -115,18 +117,18 @@ static int read_register(psx93XX_t this, u8 address, u8 *value)
 
 	if (this && value && this->bus) {
 		i2c = this->bus;
-		returnValue = i2c_smbus_read_byte_data(i2c,address);
-		
-		#ifdef DEBUG
-		dev_info(&i2c->dev, "read_register Address: 0x%x Return: 0x%x\n",
-														address,returnValue);
-		#endif
+		returnValue = i2c_smbus_read_byte_data(i2c, address);
+
+#ifdef DEBUG
+		dev_info(&i2c->dev,
+			 "read_register Address: 0x%x Return: 0x%x\n", address,
+			 returnValue);
+#endif
 
 		if (returnValue >= 0) {
 			*value = returnValue;
 			return 0;
-		} 
-		else {
+		} else {
 			return returnValue;
 		}
 	}
@@ -147,8 +149,8 @@ static int read_regStat(psx93XX_t this)
 {
 	u8 data = 0;
 	if (this) {
-		if (read_register(this,SX932x_IRQSTAT_REG,&data) == 0)
-		return (data & 0x00FF);
+		if (read_register(this, SX932x_IRQSTAT_REG, &data) == 0)
+			return (data & 0x00FF);
 	}
 	return 0;
 }
@@ -161,34 +163,37 @@ static int read_regStat(psx93XX_t this)
 static int manual_offset_calibration(psx93XX_t this)
 {
 	s32 returnValue = 0;
-	returnValue = write_register(this,SX932x_STAT2_REG,0x0F);
+	returnValue = write_register(this, SX932x_STAT2_REG, 0x0F);
 	return returnValue;
 }
 /*! \brief sysfs show function for manual calibration which currently just
  * returns register value.
  */
 static ssize_t manual_offset_calibration_show(struct device *dev,
-								struct device_attribute *attr, char *buf)
+					      struct device_attribute *attr,
+					      char *buf)
 {
 	u8 reg_value = 0;
 	psx93XX_t this = dev_get_drvdata(dev);
 
 	dev_info(this->pdev, "Reading IRQSTAT_REG\n");
-	read_register(this,SX932x_IRQSTAT_REG,&reg_value);
+	read_register(this, SX932x_IRQSTAT_REG, &reg_value);
 	return sprintf(buf, "%d\n", reg_value);
 }
 
 /*! \brief sysfs store function for manual calibration
  */
 static ssize_t manual_offset_calibration_store(struct device *dev,
-			struct device_attribute *attr,const char *buf, size_t count)
+					       struct device_attribute *attr,
+					       const char *buf, size_t count)
 {
 	psx93XX_t this = dev_get_drvdata(dev);
 	unsigned long val;
 	if (kstrtoul(buf, 0, &val))
-	return -EINVAL;
+		return -EINVAL;
 	if (val) {
-		dev_info( this->pdev, "Performing manual_offset_calibration()\n");
+		dev_info(this->pdev,
+			 "Performing manual_offset_calibration()\n");
 		manual_offset_calibration(this);
 	}
 	return count;
@@ -200,31 +205,30 @@ static int sx932x_Hardware_Check(psx93XX_t this)
 	u8 failcode;
 	u8 loop = 0;
 	this->failStatusCode = 0;
-	
+
 	//Check th IRQ Status
-	while(this->get_nirq_low && this->get_nirq_low()){
+	while (this->get_nirq_low && this->get_nirq_low()) {
 		read_regStat(this);
 		msleep(100);
-		if(++loop >10){
+		if (++loop > 10) {
 			this->failStatusCode = SX932x_NIRQ_ERROR;
 			break;
 		}
 	}
-	
+
 	//Check I2C Connection
 	ret = read_register(this, SX932x_WHOAMI_REG, &failcode);
-	if(ret < 0){
+	if (ret < 0) {
 		this->failStatusCode = SX932x_I2C_ERROR;
 	}
-		
-	if(failcode!= SX932x_WHOAMI_VALUE){
+
+	if (failcode != SX932x_WHOAMI_VALUE) {
 		this->failStatusCode = SX932x_ID_ERROR;
 	}
-	
-	dev_info(this->pdev, "sx932x failcode = 0x%x\n",this->failStatusCode);
+
+	dev_info(this->pdev, "sx932x failcode = 0x%x\n", this->failStatusCode);
 	return (int)this->failStatusCode;
 }
-
 
 /*********************************************************************/
 static int sx932x_global_variable_init(psx93XX_t this)
@@ -236,67 +240,75 @@ static int sx932x_global_variable_init(psx93XX_t this)
 }
 
 static ssize_t sx932x_register_write_store(struct device *dev,
-			struct device_attribute *attr, const char *buf, size_t count)
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
 {
 	int reg_address = 0, val = 0;
 	psx93XX_t this = dev_get_drvdata(dev);
 
 	if (sscanf(buf, "%x,%x", &reg_address, &val) != 2) {
-		pr_err("[SX932x]: %s - The number of data are wrong\n",__func__);
+		pr_err("[SX932x]: %s - The number of data are wrong\n",
+		       __func__);
 		return -EINVAL;
 	}
 
 	write_register(this, (unsigned char)reg_address, (unsigned char)val);
-	pr_info("[SX932x]: %s - Register(0x%x) data(0x%x)\n",__func__, reg_address, val);
+	pr_info("[SX932x]: %s - Register(0x%x) data(0x%x)\n", __func__,
+		reg_address, val);
 
 	return count;
 }
 //read registers not include the advanced one
 static ssize_t sx932x_register_read_store(struct device *dev,
-			struct device_attribute *attr, const char *buf, size_t count)
+					  struct device_attribute *attr,
+					  const char *buf, size_t count)
 {
-	u8 val=0;
+	u8 val = 0;
 	int regist = 0;
 	psx93XX_t this = dev_get_drvdata(dev);
 
 	dev_info(this->pdev, "Reading register\n");
 
 	if (sscanf(buf, "%x", &regist) != 1) {
-		pr_err("[SX932x]: %s - The number of data are wrong\n",__func__);
+		pr_err("[SX932x]: %s - The number of data are wrong\n",
+		       __func__);
 		return -EINVAL;
 	}
 
 	read_register(this, regist, &val);
-	pr_info("[SX932x]: %s - Register(0x%2x) data(0x%2x)\n",__func__, regist, val);
+	pr_info("[SX932x]: %s - Register(0x%2x) data(0x%2x)\n", __func__,
+		regist, val);
 
 	return count;
 }
 
 static void read_rawData(psx93XX_t this)
 {
-	u8 msb=0, lsb=0;
+	u8 msb = 0, lsb = 0;
 	u8 csx;
 	s32 useful;
 	s32 average;
 	s32 diff;
 	u16 offset;
-	if(this){
-		for(csx =0; csx<4; csx++){
-			write_register(this,SX932x_CPSRD,csx);//here to check the CS1, also can read other channel		
-			read_register(this,SX932x_USEMSB,&msb);
-			read_register(this,SX932x_USELSB,&lsb);
+	if (this) {
+		for (csx = 0; csx < 4; csx++) {
+			write_register(
+				this, SX932x_CPSRD,
+				csx); //here to check the CS1, also can read other channel
+			read_register(this, SX932x_USEMSB, &msb);
+			read_register(this, SX932x_USELSB, &lsb);
 			useful = (s32)((msb << 8) | lsb);
-			
-			read_register(this,SX932x_AVGMSB,&msb);
-			read_register(this,SX932x_AVGLSB,&lsb);
+
+			read_register(this, SX932x_AVGMSB, &msb);
+			read_register(this, SX932x_AVGLSB, &lsb);
 			average = (s32)((msb << 8) | lsb);
-			
-			read_register(this,SX932x_DIFFMSB,&msb);
-			read_register(this,SX932x_DIFFLSB,&lsb);
+
+			read_register(this, SX932x_DIFFMSB, &msb);
+			read_register(this, SX932x_DIFFLSB, &lsb);
 			diff = (s32)((msb << 8) | lsb);
-			
-			read_register(this,SX932x_OFFSETMSB,&msb);
-			read_register(this,SX932x_OFFSETLSB,&lsb);
+
+			read_register(this, SX932x_OFFSETMSB, &msb);
+			read_register(this, SX932x_OFFSETLSB, &lsb);
 			offset = (u16)((msb << 8) | lsb);
 			if (useful > 32767)
 				useful -= 65536;
@@ -304,13 +316,16 @@ static void read_rawData(psx93XX_t this)
 				average -= 65536;
 			if (diff > 32767)
 				diff -= 65536;
-			dev_info(this->pdev, "rawData: [CS: %d] Useful = %d Average = %d, DIFF = %d Offset = %d \n",csx,useful,average,diff,offset);
+			dev_info(
+				this->pdev,
+				"rawData: [CS: %d] Useful = %d Average = %d, DIFF = %d Offset = %d \n",
+				csx, useful, average, diff, offset);
 		}
 	}
 }
 
 static ssize_t sx932x_raw_data_show(struct device *dev,
-						struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr, char *buf)
 {
 	psx93XX_t this = dev_get_drvdata(dev);
 	read_rawData(this);
@@ -352,12 +367,12 @@ static int read_cap_status(psx93XX_t this)
 static int read_cap_status(psx93XX_t this)
 {
 	int ret;
-	
-	if(g_CAP_STATUS_UEVENT == CAP_STATUS_UEVENT_FAR){
+
+	if (g_CAP_STATUS_UEVENT == CAP_STATUS_UEVENT_FAR) {
 		pr_info("[SX932x] Far\n");
 		asus_extcon_set_state_sync(this->cap_satus_extcon, 0);
 		ret = 0;
-	}else{
+	} else {
 		pr_info("[SX932x] Near\n");
 		asus_extcon_set_state_sync(this->cap_satus_extcon, 1);
 		ret = 1;
@@ -368,79 +383,77 @@ static int read_cap_status(psx93XX_t this)
 }
 
 static ssize_t sx932x_cap_status_show(struct device *dev,
-						struct device_attribute *attr, char *buf)
+				      struct device_attribute *attr, char *buf)
 {
-    psx93XX_t this = dev_get_drvdata(dev);
-    int ret = read_cap_status(this);
+	psx93XX_t this = dev_get_drvdata(dev);
+	int ret = read_cap_status(this);
 	return sprintf(buf, "%d\n", ret);
 }
 
 static int read_cap2_status(psx93XX_t this)
 {
-    u8 reg_val = 0;
-    int ret = read_register(this, SX932x_USELSB, &reg_val);
-    if (ret < 0) {
-        pr_err("[SX932x] read cap2 register fail\n");
-        return -1;
-    } else {
-        if (reg_val == 0xfe) {
-            pr_info("[SX932x] CS2: near\n");
-        } else {
-            pr_info("[SX932x] CS2: far\n");
-            return -1;
-        }
-    }
-    return 0;
-}
-
-static ssize_t sx932x_cap2_status_show(struct device *dev,
-                                                struct device_attribute *attr, char *buf)
-{
-    psx93XX_t this = dev_get_drvdata(dev);
-    int ret = read_cap2_status(this);
-    if (ret == 0) {
-        return sprintf(buf, "1\n");
-    } else {
-        return sprintf(buf, "0\n");
-    }
-}
-
-static ssize_t sx932x_register_dump_show(struct device *dev,
-                                                struct device_attribute *attr, char *buf)
-{
-    u8 reg_val = 0;
-    int ret = 0, reg = 0x0;
-
-    psx93XX_t this = dev_get_drvdata(dev);
-
-	for(reg=0x0; reg<=0x68; reg++){
-		ret = read_register(this, reg, &reg_val);
-	    if (ret < 0) {
-	        pr_err("[SX932x] read [0x%02x] fail\n", reg_val);
-	    } else {
-	        pr_info("[SX932x] [0x%02x]=0x%02x\n",reg, reg_val);
-	        sprintf(buf, "[0x%02x]=0x%02x\n",reg, reg_val);
-	    }
+	u8 reg_val = 0;
+	int ret = read_register(this, SX932x_USELSB, &reg_val);
+	if (ret < 0) {
+		pr_err("[SX932x] read cap2 register fail\n");
+		return -1;
+	} else {
+		if (reg_val == 0xfe) {
+			pr_info("[SX932x] CS2: near\n");
+		} else {
+			pr_info("[SX932x] CS2: far\n");
+			return -1;
+		}
 	}
 	return 0;
 }
 
-static DEVICE_ATTR(manual_calibrate, 0664, manual_offset_calibration_show,manual_offset_calibration_store);
-static DEVICE_ATTR(register_write,  0664, NULL,sx932x_register_write_store);
-static DEVICE_ATTR(register_read,0664, NULL,sx932x_register_read_store);
-static DEVICE_ATTR(raw_data,0664,sx932x_raw_data_show,NULL);
-static DEVICE_ATTR(cap_status,0664,sx932x_cap_status_show,NULL);
-static DEVICE_ATTR(cap2_status,0664,sx932x_cap2_status_show,NULL);
-static DEVICE_ATTR(register_dump,0664,sx932x_register_dump_show,NULL);
+static ssize_t sx932x_cap2_status_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	psx93XX_t this = dev_get_drvdata(dev);
+	int ret = read_cap2_status(this);
+	if (ret == 0) {
+		return sprintf(buf, "1\n");
+	} else {
+		return sprintf(buf, "0\n");
+	}
+}
+
+static ssize_t sx932x_register_dump_show(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	u8 reg_val = 0;
+	int ret = 0, reg = 0x0;
+
+	psx93XX_t this = dev_get_drvdata(dev);
+
+	for (reg = 0x0; reg <= 0x68; reg++) {
+		ret = read_register(this, reg, &reg_val);
+		if (ret < 0) {
+			pr_err("[SX932x] read [0x%02x] fail\n", reg_val);
+		} else {
+			pr_info("[SX932x] [0x%02x]=0x%02x\n", reg, reg_val);
+			sprintf(buf, "[0x%02x]=0x%02x\n", reg, reg_val);
+		}
+	}
+	return 0;
+}
+
+static DEVICE_ATTR(manual_calibrate, 0664, manual_offset_calibration_show,
+		   manual_offset_calibration_store);
+static DEVICE_ATTR(register_write, 0664, NULL, sx932x_register_write_store);
+static DEVICE_ATTR(register_read, 0664, NULL, sx932x_register_read_store);
+static DEVICE_ATTR(raw_data, 0664, sx932x_raw_data_show, NULL);
+static DEVICE_ATTR(cap_status, 0664, sx932x_cap_status_show, NULL);
+static DEVICE_ATTR(cap2_status, 0664, sx932x_cap2_status_show, NULL);
+static DEVICE_ATTR(register_dump, 0664, sx932x_register_dump_show, NULL);
 static struct attribute *sx932x_attributes[] = {
-	&dev_attr_manual_calibrate.attr,
-	&dev_attr_register_write.attr,
-	&dev_attr_register_read.attr,
-	&dev_attr_raw_data.attr,
-	&dev_attr_cap_status.attr,
-	&dev_attr_cap2_status.attr,
-	&dev_attr_register_dump.attr,
-	NULL,
+	&dev_attr_manual_calibrate.attr, &dev_attr_register_write.attr,
+	&dev_attr_register_read.attr,	 &dev_attr_raw_data.attr,
+	&dev_attr_cap_status.attr,	 &dev_attr_cap2_status.attr,
+	&dev_attr_register_dump.attr,	 NULL,
 };
 static struct attribute_group sx932x_attr_group = {
 	.attrs = sx932x_attributes,
@@ -455,37 +468,37 @@ static void sx932x_reg_init(psx93XX_t this)
 	psx932x_t pDevice = 0;
 	psx932x_platform_data_t pdata = 0;
 	int i = 0;
-	/* configure device */ 
+	/* configure device */
 	dev_info(this->pdev, "Going to Setup I2C Registers\n");
-	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw))
-	{
+	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
 		/*******************************************************************************/
 		// try to initialize from device tree!
 		/*******************************************************************************/
 		if (this->reg_in_dts == true) {
-			while ( i < pdata->i2c_reg_num) {
+			while (i < pdata->i2c_reg_num) {
 				/* Write all registers/values contained in i2c_reg */
 				//dev_info(this->pdev, "Going to Write Reg from dts: 0x%x Value: 0x%x\n",
 				//pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
-				write_register(this, pdata->pi2c_reg[i].reg,pdata->pi2c_reg[i].val);
+				write_register(this, pdata->pi2c_reg[i].reg,
+					       pdata->pi2c_reg[i].val);
 				i++;
 			}
 		} else { // use static ones!!
-			while ( i < ARRAY_SIZE(sx932x_i2c_reg_setup)) {
+			while (i < ARRAY_SIZE(sx932x_i2c_reg_setup)) {
 				/* Write all registers/values contained in i2c_reg */
 				//dev_info(this->pdev, "Going to Write Reg: 0x%x Value: 0x%x\n",
 				//sx932x_i2c_reg_setup[i].reg,sx932x_i2c_reg_setup[i].val);
-				write_register(this, sx932x_i2c_reg_setup[i].reg,sx932x_i2c_reg_setup[i].val);
+				write_register(this,
+					       sx932x_i2c_reg_setup[i].reg,
+					       sx932x_i2c_reg_setup[i].val);
 				i++;
 			}
 		}
-	/*******************************************************************************/
+		/*******************************************************************************/
 	} else {
-		dev_err(this->pdev, "ERROR! platform data 0x%p\n",pDevice->hw);
+		dev_err(this->pdev, "ERROR! platform data 0x%p\n", pDevice->hw);
 	}
-
 }
-
 
 /*! \fn static int initialize(psx93XX_t this)
  * \brief Performs all initialization needed to configure the device
@@ -501,21 +514,23 @@ static int initialize(psx93XX_t this)
 		this->irq_disabled = 1;
 		disable_irq(this->irq);
 		/* perform a reset */
-		write_register(this,SX932x_SOFTRESET_REG,SX932x_SOFTRESET);
+		write_register(this, SX932x_SOFTRESET_REG, SX932x_SOFTRESET);
 		/* wait until the reset has finished by monitoring NIRQ */
-		dev_info(this->pdev, "Sent Software Reset. Waiting until device is back from reset to continue.\n");
+		dev_info(
+			this->pdev,
+			"Sent Software Reset. Waiting until device is back from reset to continue.\n");
 		/* just sleep for awhile instead of using a loop with reading irq status */
 		msleep(100);
-		
+
 		ret = sx932x_global_variable_init(this);
-		
+
 		sx932x_reg_init(this);
 		msleep(100); /* make sure everything is running */
 		manual_offset_calibration(this);
 
 		/* re-enable interrupt handling */
 		enable_irq(this->irq);
-		
+
 		/* make sure no interrupts are pending since enabling irq will only
 		* work on next falling edge */
 		read_regStat(this);
@@ -598,8 +613,8 @@ static void touchProcess(psx93XX_t this)
 static void cap_status_uevent_far(psx93XX_t this)
 {
 	g_CAP_STATUS_UEVENT = CAP_STATUS_UEVENT_FAR;
-	
-	if(g_CAP_STATUS_UEVENT_last != g_CAP_STATUS_UEVENT)
+
+	if (g_CAP_STATUS_UEVENT_last != g_CAP_STATUS_UEVENT)
 		read_cap_status(this);
 }
 
@@ -607,46 +622,54 @@ static void cap_status_uevent_near(psx93XX_t this)
 {
 	g_CAP_STATUS_UEVENT = CAP_STATUS_UEVENT_NEAR;
 
-	if(g_CAP_STATUS_UEVENT_last != g_CAP_STATUS_UEVENT)
+	if (g_CAP_STATUS_UEVENT_last != g_CAP_STATUS_UEVENT)
 		read_cap_status(this);
 }
 //ASUS_BSP --- register cap_satus uevent
 
-static int sx932x_parse_dt(struct sx932x_platform_data *pdata, struct device *dev)
+static int sx932x_parse_dt(struct sx932x_platform_data *pdata,
+			   struct device *dev)
 {
 	struct device_node *dNode = dev->of_node;
 	enum of_gpio_flags flags;
-	int ret=0;
+	int ret = 0;
 	if (dNode == NULL)
 		return -ENODEV;
-	
-	pdata->irq_gpio= of_get_named_gpio_flags(dNode,
-											"Semtech,nirq-gpio", 0, &flags);
+
+	pdata->irq_gpio =
+		of_get_named_gpio_flags(dNode, "Semtech,nirq-gpio", 0, &flags);
 	irq_gpio_num = pdata->irq_gpio;
 	if (pdata->irq_gpio < 0) {
 		pr_err("[SENSOR]: %s - get irq_gpio error\n", __func__);
 		return -ENODEV;
 	}
-	
+
 	/***********************************************************************/
 	// load in registers from device tree
-	of_property_read_u32(dNode,"Semtech,reg-num",&pdata->i2c_reg_num);
+	of_property_read_u32(dNode, "Semtech,reg-num", &pdata->i2c_reg_num);
 	// layout is register, value, register, value....
 	// if an extra item is after just ignore it. reading the array in will cause it to fail anyway
-	pr_info("[SX932x]:%s -  size of elements %d \n", __func__,pdata->i2c_reg_num);
+	pr_info("[SX932x]:%s -  size of elements %d \n", __func__,
+		pdata->i2c_reg_num);
 	if (pdata->i2c_reg_num > 0) {
-		 // initialize platform reg data array
-		 pdata->pi2c_reg = devm_kzalloc(dev,sizeof(struct smtc_reg_data)*pdata->i2c_reg_num, GFP_KERNEL);
-		 if (unlikely(pdata->pi2c_reg == NULL)) {
+		// initialize platform reg data array
+		pdata->pi2c_reg = devm_kzalloc(
+			dev, sizeof(struct smtc_reg_data) * pdata->i2c_reg_num,
+			GFP_KERNEL);
+		if (unlikely(pdata->pi2c_reg == NULL)) {
 			return -ENOMEM;
 		}
 
-	 // initialize the array
-		if (of_property_read_u8_array(dNode,"Semtech,reg-init",(u8*)&(pdata->pi2c_reg[0]),sizeof(struct smtc_reg_data)*pdata->i2c_reg_num))
-		return -ENOMEM;
+		// initialize the array
+		if (of_property_read_u8_array(dNode, "Semtech,reg-init",
+					      (u8 *)&(pdata->pi2c_reg[0]),
+					      sizeof(struct smtc_reg_data) *
+						      pdata->i2c_reg_num))
+			return -ENOMEM;
 	}
 	/***********************************************************************/
-	pr_info("[SX932x]: %s -[%d] parse_dt complete\n", __func__,pdata->irq_gpio);
+	pr_info("[SX932x]: %s -[%d] parse_dt complete\n", __func__,
+		pdata->irq_gpio);
 	return ret;
 }
 
@@ -659,32 +682,35 @@ static int sx932x_init_platform_hw(struct i2c_client *client)
 
 	int rc;
 
-	pr_info("[SX932x] : %s init_platform_hw start!",__func__);
+	pr_info("[SX932x] : %s init_platform_hw start!", __func__);
 
 	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
 		if (gpio_is_valid(pdata->irq_gpio)) {
-			rc = devm_gpio_request(this->pdev, pdata->irq_gpio, "sx932x_irq_gpio");
+			rc = devm_gpio_request(this->pdev, pdata->irq_gpio,
+					       "sx932x_irq_gpio");
 			if (rc < 0) {
-				dev_err(this->pdev, "SX932x Request gpio. Fail![%d]\n", rc);
+				dev_err(this->pdev,
+					"SX932x Request gpio. Fail![%d]\n", rc);
 				return rc;
 			}
 			rc = gpio_direction_input(pdata->irq_gpio);
 			if (rc < 0) {
-				dev_err(this->pdev, "SX932x Set gpio direction. Fail![%d]\n", rc);
+				dev_err(this->pdev,
+					"SX932x Set gpio direction. Fail![%d]\n",
+					rc);
 				return rc;
 			}
 			this->irq = client->irq = gpio_to_irq(pdata->irq_gpio);
 			pr_info("%s : IRQ number = %d\n", __func__, this->irq);
+		} else {
+			dev_err(this->pdev,
+				"SX932x Invalid irq gpio num.(init)\n");
 		}
-		else {
-			dev_err(this->pdev, "SX932x Invalid irq gpio num.(init)\n");
-		}
-	}
-	else {
+	} else {
 		pr_err("[SX932x] : %s - Do not init platform HW", __func__);
 	}
-	
-	pr_err("[SX932x]: %s - sx932x_irq_debug\n",__func__);
+
+	pr_err("[SX932x]: %s - sx932x_irq_debug\n", __func__);
 	return rc;
 }
 
@@ -697,8 +723,7 @@ static void sx932x_exit_platform_hw(struct i2c_client *client)
 	if (this && (pDevice = this->pDevice) && (pdata = pDevice->hw)) {
 		if (gpio_is_valid(pdata->irq_gpio)) {
 			gpio_free(pdata->irq_gpio);
-		}
-		else {
+		} else {
 			dev_err(this->pdev, "Invalid irq gpio num.(exit)\n");
 		}
 	}
@@ -711,7 +736,7 @@ static int sx932x_get_nirq_state(void)
 
 	value = gpio_get_value(irq_gpio_num);
 	//pr_info("%s (gpio%d)= %d\n", __func__, irq_gpio_num,value);
-	return  !value;
+	return !value;
 }
 
 //ASUS_BSP LiJen +++ add initial work for resume
@@ -720,10 +745,11 @@ static void sx93XX_init_worker_func(struct work_struct *work)
 	psx93XX_t this = 0;
 
 	if (work) {
-		this = container_of(work,sx93XX_t,initworker.work);
+		this = container_of(work, sx93XX_t, initworker.work);
 
 		if (!this) {
-			printk(KERN_ERR "sx93XX_init_worker_func, NULL sx93XX_t\n");
+			printk(KERN_ERR
+			       "sx93XX_init_worker_func, NULL sx93XX_t\n");
 			return;
 		}
 		if (this->init)
@@ -740,16 +766,18 @@ static void sx93XX_hwcheck_worker_func(struct work_struct *work)
 	psx93XX_t this = 0;
 
 	if (work) {
-		this = container_of(work,sx93XX_t,hwcheckworker.work);
+		this = container_of(work, sx93XX_t, hwcheckworker.work);
 
 		if (!this) {
-			printk(KERN_ERR "sx93XX_hwcheck_worker_func, NULL sx93XX_t\n");
+			printk(KERN_ERR
+			       "sx93XX_hwcheck_worker_func, NULL sx93XX_t\n");
 			return;
 		}
 		sx932x_Hardware_Check(this);
-		
+
 	} else {
-		printk(KERN_ERR "sx93XX_hwcheck_worker_func, NULL work_struct\n");
+		printk(KERN_ERR
+		       "sx93XX_hwcheck_worker_func, NULL work_struct\n");
 	}
 }
 //ASUS_BSP LiJen --- add hwcheck work for probe
@@ -760,8 +788,9 @@ static void sx93XX_hwcheck_worker_func(struct work_struct *work)
  * \param id pointer to i2c_device_id
  * \return Whether probe was successful
  */
-static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{    
+static int sx932x_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
 	int i = 0;
 	int err = 0;
 
@@ -773,11 +802,11 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 
 	//If country code is US, diable sx932x driver
-	if(g_is_country_code_US){
+	if (g_is_country_code_US) {
 		dev_info(&client->dev, "Disable sx932x driver\n");
 		return 0;
 	}
-	
+
 	dev_info(&client->dev, "sx932x_probe()\n");
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)) {
@@ -786,27 +815,32 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 		return err;
 	}
 
-	this = devm_kzalloc(&client->dev,sizeof(sx93XX_t), GFP_KERNEL); /* create memory for main struct */
-	dev_info(&client->dev, "\t Initialized Main Memory: 0x%p\n",this);
+	this = devm_kzalloc(&client->dev, sizeof(sx93XX_t),
+			    GFP_KERNEL); /* create memory for main struct */
+	dev_info(&client->dev, "\t Initialized Main Memory: 0x%p\n", this);
 
-	pButtonInformationData = devm_kzalloc(&client->dev , sizeof(struct totalButtonInformation), GFP_KERNEL);
+	pButtonInformationData =
+		devm_kzalloc(&client->dev,
+			     sizeof(struct totalButtonInformation), GFP_KERNEL);
 	if (!pButtonInformationData) {
-		dev_err(&client->dev, "Failed to allocate memory(totalButtonInformation)\n");
+		dev_err(&client->dev,
+			"Failed to allocate memory(totalButtonInformation)\n");
 		err = -ENOMEM;
 		return err;
 	}
 
 	pButtonInformationData->buttonSize = ARRAY_SIZE(psmtcButtons);
-	pButtonInformationData->buttons =  psmtcButtons;
-	pplatData = devm_kzalloc(&client->dev,sizeof(struct sx932x_platform_data), GFP_KERNEL);
+	pButtonInformationData->buttons = psmtcButtons;
+	pplatData = devm_kzalloc(
+		&client->dev, sizeof(struct sx932x_platform_data), GFP_KERNEL);
 	if (!pplatData) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
 	}
 	pplatData->get_is_nirq_low = sx932x_get_nirq_state;
 	pplatData->pbuttonInformation = pButtonInformationData;
- 
-	client->dev.platform_data = pplatData; 
+
+	client->dev.platform_data = pplatData;
 	err = sx932x_parse_dt(pplatData, &client->dev);
 	if (err) {
 		dev_err(&client->dev, "could not setup pin\n");
@@ -815,8 +849,8 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 	pplatData->init_platform_hw = sx932x_init_platform_hw;
 	dev_err(&client->dev, "SX932x init_platform_hw done!\n");
-	
-	if (this){
+
+	if (this) {
 		dev_info(&client->dev, "SX932x initialize start!!");
 		/* In case we need to reinitialize data 
 		* (e.q. if suspend reset device) */
@@ -832,15 +866,16 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 		this->useIrqTimer = 0;
 
 		/* Setup function to call on corresponding reg irq source bit */
-		if (MAX_NUM_STATUS_BITS>= 8)
-		{
+		if (MAX_NUM_STATUS_BITS >= 8) {
 			this->statusFunc[0] = 0; /* TXEN_STAT */
 			this->statusFunc[1] = 0; /* UNUSED */
 			this->statusFunc[2] = 0; /* UNUSED */
-			this->statusFunc[3] = 0;//read_rawData; /* CONV_STAT */
+			this->statusFunc[3] = 0; //read_rawData; /* CONV_STAT */
 			this->statusFunc[4] = 0; /* COMP_STAT */
-			this->statusFunc[5] = cap_status_uevent_far;//touchProcess; /* RELEASE_STAT */
-			this->statusFunc[6] = cap_status_uevent_near;//touchProcess; /* TOUCH_STAT  */
+			this->statusFunc[5] =
+				cap_status_uevent_far; //touchProcess; /* RELEASE_STAT */
+			this->statusFunc[6] =
+				cap_status_uevent_near; //touchProcess; /* TOUCH_STAT  */
 			this->statusFunc[7] = 0; /* RESET_STAT */
 		}
 
@@ -852,12 +887,16 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 		this->pdev = &client->dev;
 
 		/* create memory for device specific struct */
-		this->pDevice = pDevice = devm_kzalloc(&client->dev,sizeof(sx932x_t), GFP_KERNEL);
-		dev_info(&client->dev, "\t Initialized Device Specific Memory: 0x%p\n",pDevice);
+		this->pDevice = pDevice = devm_kzalloc(
+			&client->dev, sizeof(sx932x_t), GFP_KERNEL);
+		dev_info(&client->dev,
+			 "\t Initialized Device Specific Memory: 0x%p\n",
+			 pDevice);
 
-		if (pDevice){
+		if (pDevice) {
 			/* for accessing items in user data (e.g. calibrate) */
-			err = sysfs_create_group(&client->dev.kobj, &sx932x_attr_group);
+			err = sysfs_create_group(&client->dev.kobj,
+						 &sx932x_attr_group);
 			//sysfs_create_group(client, &sx932x_attr_group);
 
 			/* Add Pointer to main platform data struct */
@@ -865,10 +904,11 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 
 			/* Check if we hava a platform initialization function to call*/
 			if (pplatData->init_platform_hw)
-			pplatData->init_platform_hw(client);
+				pplatData->init_platform_hw(client);
 
 			/* Initialize the button information initialized with keycodes */
-			pDevice->pbuttonInformation = pplatData->pbuttonInformation;
+			pDevice->pbuttonInformation =
+				pplatData->pbuttonInformation;
 			/* Create the input device */
 			input = input_allocate_device();
 			if (!input) {
@@ -876,52 +916,63 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 			}
 			/* Set all the keycodes */
 			__set_bit(EV_KEY, input->evbit);
-			#if 1
-			for (i = 0; i < pButtonInformationData->buttonSize; i++) {
-				__set_bit(pButtonInformationData->buttons[i].keycode,input->keybit);
+#if 1
+			for (i = 0; i < pButtonInformationData->buttonSize;
+			     i++) {
+				__set_bit(pButtonInformationData->buttons[i]
+						  .keycode,
+					  input->keybit);
 				pButtonInformationData->buttons[i].state = IDLE;
 			}
-			#endif
+#endif
 			/* save the input pointer and finish initialization */
 			pButtonInformationData->input = input;
 			input->name = "SX932x Cap Touch";
 			input->id.bustype = BUS_I2C;
-			if(input_register_device(input)){
+			if (input_register_device(input)) {
 				return -ENOMEM;
 			}
 		}
 
 		sx93XX_IRQ_init(this);
 		/* call init function pointer (this should initialize all registers */
-		INIT_DELAYED_WORK(&this->initworker, sx93XX_init_worker_func); //ASUS_BSP LiJen add initial work for resume
-		if (this->init){
-			schedule_delayed_work(&this->initworker,0);
-		}else{
-			dev_err(this->pdev,"No init function!!!!\n");
+		INIT_DELAYED_WORK(
+			&this->initworker,
+			sx93XX_init_worker_func); //ASUS_BSP LiJen add initial work for resume
+		if (this->init) {
+			schedule_delayed_work(&this->initworker, 0);
+		} else {
+			dev_err(this->pdev, "No init function!!!!\n");
 			return -ENOMEM;
 		}
-	}else{
+	} else {
 		return -1;
 	}
 
-	INIT_DELAYED_WORK(&this->hwcheckworker, sx93XX_hwcheck_worker_func); //ASUS_BSP LiJen add hwcheck work for probe
-	schedule_delayed_work(&this->hwcheckworker,1);
+	INIT_DELAYED_WORK(
+		&this->hwcheckworker,
+		sx93XX_hwcheck_worker_func); //ASUS_BSP LiJen add hwcheck work for probe
+	schedule_delayed_work(&this->hwcheckworker, 1);
 	pplatData->exit_platform_hw = sx932x_exit_platform_hw;
 
 	//ASUS_BSP +++ register cap_satus uevent
 	this->cap_satus_extcon = extcon_dev_allocate(asus_cap_extcon_cable);
 	if (IS_ERR(this->cap_satus_extcon)) {
 		err = PTR_ERR(this->cap_satus_extcon);
-		dev_err(this->pdev, "failed to allocate ASUS cap_satus_extcon device rc=%d\n", err);
+		dev_err(this->pdev,
+			"failed to allocate ASUS cap_satus_extcon device rc=%d\n",
+			err);
 	}
 	this->cap_satus_extcon->fnode_name = "cap_status";
 
 	err = extcon_dev_register(this->cap_satus_extcon);
 	if (err < 0) {
-		dev_err(this->pdev, "failed to register ASUS cap_satus_extcon device rc=%d\n", err);
+		dev_err(this->pdev,
+			"failed to register ASUS cap_satus_extcon device rc=%d\n",
+			err);
 	}
 	//ASUS_BSP --- register cap_satus uevent
-	
+
 	dev_info(&client->dev, "sx932x_probe() Done\n");
 
 	return 0;
@@ -935,11 +986,10 @@ static int sx932x_probe(struct i2c_client *client, const struct i2c_device_id *i
 //static int __devexit sx932x_remove(struct i2c_client *client)
 static int sx932x_remove(struct i2c_client *client)
 {
-	psx932x_platform_data_t pplatData =0;
+	psx932x_platform_data_t pplatData = 0;
 	psx932x_t pDevice = 0;
 	psx93XX_t this = i2c_get_clientdata(client);
-	if (this && (pDevice = this->pDevice))
-	{
+	if (this && (pDevice = this->pDevice)) {
 		input_unregister_device(pDevice->pbuttonInformation->input);
 
 		sysfs_remove_group(&client->dev.kobj, &sx932x_attr_group);
@@ -950,7 +1000,7 @@ static int sx932x_remove(struct i2c_client *client)
 	}
 	return sx93XX_remove(this);
 }
-#if 1//def CONFIG_PM
+#if 1 //def CONFIG_PM
 /*====================================================*/
 /***** Kernel Suspend *****/
 static int sx932x_suspend(struct device *dev)
@@ -968,19 +1018,18 @@ static int sx932x_resume(struct device *dev)
 }
 /*====================================================*/
 #else
-#define sx932x_suspend		NULL
-#define sx932x_resume		NULL
+#define sx932x_suspend NULL
+#define sx932x_resume NULL
 #endif /* CONFIG_PM */
 
-static struct i2c_device_id sx932x_idtable[] = {
-	{ DRIVER_NAME, 0 },
-	{ }
-};
+static struct i2c_device_id sx932x_idtable[] = { { DRIVER_NAME, 0 }, {} };
 MODULE_DEVICE_TABLE(i2c, sx932x_idtable);
 #ifdef CONFIG_OF
 static struct of_device_id sx932x_match_table[] = {
-	{ .compatible = "Semtech,sx932x",},
-	{ },
+	{
+		.compatible = "Semtech,sx932x",
+	},
+	{},
 };
 #else
 #define sx932x_match_table NULL
@@ -1022,16 +1071,15 @@ static void sx93XX_schedule_work(psx93XX_t this, unsigned long delay)
 	unsigned long flags;
 	if (this) {
 		//dev_info(this->pdev, "sx93XX_schedule_work()\n");
-		spin_lock_irqsave(&this->lock,flags);
+		spin_lock_irqsave(&this->lock, flags);
 		/* Stop any pending penup queues */
 		cancel_delayed_work(&this->dworker);
 		//after waiting for a delay, this put the job in the kernel-global workqueue. so no need to create new thread in work queue.
-		schedule_delayed_work(&this->dworker,delay);
-		spin_unlock_irqrestore(&this->lock,flags);
-	}
-	else
+		schedule_delayed_work(&this->dworker, delay);
+		spin_unlock_irqrestore(&this->lock, flags);
+	} else
 		printk(KERN_ERR "sx93XX_schedule_work, NULL psx93XX_t\n");
-} 
+}
 
 static irqreturn_t sx93XX_irq(int irq, void *pvoid)
 {
@@ -1039,13 +1087,11 @@ static irqreturn_t sx93XX_irq(int irq, void *pvoid)
 	if (pvoid) {
 		this = (psx93XX_t)pvoid;
 		if ((!this->get_nirq_low) || this->get_nirq_low()) {
-		sx93XX_schedule_work(this,0);
-		}
-		else{
+			sx93XX_schedule_work(this, 0);
+		} else {
 			dev_err(this->pdev, "sx93XX_irq - nirq read high\n");
 		}
-	}
-	else{
+	} else {
 		printk(KERN_ERR "sx93XX_irq, NULL pvoid\n");
 	}
 	return IRQ_HANDLED;
@@ -1058,7 +1104,7 @@ static void sx93XX_worker_func(struct work_struct *work)
 	int counter = 0;
 	u8 nirqLow = 0;
 	if (work) {
-		this = container_of(work,sx93XX_t,dworker.work);
+		this = container_of(work, sx93XX_t, dworker.work);
 
 		if (!this) {
 			printk(KERN_ERR "sx93XX_worker_func, NULL sx93XX_t\n");
@@ -1072,18 +1118,22 @@ static void sx93XX_worker_func(struct work_struct *work)
 		/* since we are not in an interrupt don't need to disable irq. */
 		status = this->refreshStatus(this);
 		counter = -1;
-		dev_dbg(this->pdev, "Worker - Refresh Status %d\n",status);
-		
-		while((++counter) < MAX_NUM_STATUS_BITS) { /* counter start from MSB */
-			if (((status>>counter) & 0x01) && (this->statusFunc[counter])) {
+		dev_dbg(this->pdev, "Worker - Refresh Status %d\n", status);
+
+		while ((++counter) <
+		       MAX_NUM_STATUS_BITS) { /* counter start from MSB */
+			if (((status >> counter) & 0x01) &&
+			    (this->statusFunc[counter])) {
 				//dev_info(this->pdev, "SX932x Function Pointer Found. Calling\n");
 				this->statusFunc[counter](this);
 			}
 		}
-		if (unlikely(this->useIrqTimer && nirqLow))
-		{	/* Early models and if RATE=0 for newer models require a penup timer */
+		if (unlikely(
+			    this->useIrqTimer &&
+			    nirqLow)) { /* Early models and if RATE=0 for newer models require a penup timer */
 			/* Queue up the function again for checking on penup */
-			sx93XX_schedule_work(this,msecs_to_jiffies(this->irqTimeout));
+			sx93XX_schedule_work(
+				this, msecs_to_jiffies(this->irqTimeout));
 		}
 	} else {
 		printk(KERN_ERR "sx93XX_worker_func, NULL work_struct\n");
@@ -1093,7 +1143,8 @@ static void sx93XX_worker_func(struct work_struct *work)
 int sx93XX_remove(psx93XX_t this)
 {
 	if (this) {
-		cancel_delayed_work_sync(&this->dworker); /* Cancel the Worker Func */
+		cancel_delayed_work_sync(
+			&this->dworker); /* Cancel the Worker Func */
 		/*destroy_workqueue(this->workq); */
 		free_irq(this->irq, this);
 		kfree(this);
@@ -1111,8 +1162,10 @@ void sx93XX_suspend(psx93XX_t this)
 void sx93XX_resume(psx93XX_t this)
 {
 	if (this) {
-		sx93XX_schedule_work(this,0);
-		schedule_delayed_work(&this->initworker,0); //ASUS_BSP LiJen add initial work for resume
+		sx93XX_schedule_work(this, 0);
+		schedule_delayed_work(
+			&this->initworker,
+			0); //ASUS_BSP LiJen add initial work for resume
 		enable_irq(this->irq);
 	}
 }
@@ -1123,8 +1176,7 @@ int sx93XX_IRQ_init(psx93XX_t this)
 	struct pinctrl *sx932x_pinctrl;
 	struct pinctrl_state *sx932x_pinctrl_state_active;
 
-	if (this && this->pDevice)
-	{
+	if (this && this->pDevice) {
 		/* initialize spin lock */
 		spin_lock_init(&this->lock);
 		/* initialize worker function */
@@ -1132,7 +1184,7 @@ int sx93XX_IRQ_init(psx93XX_t this)
 		/* initailize interrupt reporting */
 		this->irq_disabled = 0;
 		err = request_irq(this->irq, sx93XX_irq, IRQF_TRIGGER_FALLING,
-							this->pdev->driver->name, this);
+				  this->pdev->driver->name, this);
 		if (err) {
 			dev_err(this->pdev, "irq %d busy?\n", this->irq);
 			return err;
@@ -1140,21 +1192,28 @@ int sx93XX_IRQ_init(psx93XX_t this)
 		dev_info(this->pdev, "registered with irq (%d)\n", this->irq);
 
 		sx932x_pinctrl = devm_pinctrl_get(this->pdev);
-		if (IS_ERR(sx932x_pinctrl)){
-			dev_err(this->pdev, "%s: failed at sx932x devm_pinctrl_get\n", __func__);
+		if (IS_ERR(sx932x_pinctrl)) {
+			dev_err(this->pdev,
+				"%s: failed at sx932x devm_pinctrl_get\n",
+				__func__);
 			return PTR_ERR(sx932x_pinctrl);
 		}
-		sx932x_pinctrl_state_active = pinctrl_lookup_state(sx932x_pinctrl, "sx932x_active");
-		if (IS_ERR(sx932x_pinctrl_state_active)){
-			dev_err(this->pdev, "%s: failed at sx932x pinctrl_lookup_state\n", __func__);
+		sx932x_pinctrl_state_active =
+			pinctrl_lookup_state(sx932x_pinctrl, "sx932x_active");
+		if (IS_ERR(sx932x_pinctrl_state_active)) {
+			dev_err(this->pdev,
+				"%s: failed at sx932x pinctrl_lookup_state\n",
+				__func__);
 			return PTR_ERR(sx932x_pinctrl_state_active);
 		}
-		err = pinctrl_select_state(sx932x_pinctrl, sx932x_pinctrl_state_active);
-		if(err < 0)
-			dev_err(this->pdev, "%s: failed to set sx932x pinctrl state\n", __func__);
-	
-		enable_irq_wake(this->irq);
+		err = pinctrl_select_state(sx932x_pinctrl,
+					   sx932x_pinctrl_state_active);
+		if (err < 0)
+			dev_err(this->pdev,
+				"%s: failed to set sx932x pinctrl state\n",
+				__func__);
 
+		enable_irq_wake(this->irq);
 	}
 	return -ENOMEM;
 }

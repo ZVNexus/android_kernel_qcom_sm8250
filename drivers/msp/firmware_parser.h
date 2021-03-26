@@ -45,23 +45,22 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-typedef struct sMSPMemorySegment
-{
-     uint32_t                ui32MemoryStartAddr;
-     uint32_t                ui32MemoryLength;
-    const uint8_t*                ui8Buffer;
-    void*                   pNextSegment;
+typedef struct sMSPMemorySegment {
+	uint32_t ui32MemoryStartAddr;
+	uint32_t ui32MemoryLength;
+	const uint8_t *ui8Buffer;
+	void *pNextSegment;
 } tMSPMemorySegment;
 
-extern tMSPMemorySegment* MSP430BSL_parseTextFile(void);
-extern tMSPMemorySegment* MSP430BSL_parseSRecordArray(const unsigned long eprom_sections, 
-                                                        const unsigned long *eprom_address,
-                                                        const unsigned long *eprom_length_of_sections, 
-                                                        const unsigned char *eprom);
-extern void MSP430BSL_parsePasswordFile(const uint8_t* passwordfile, 
-                                                    uint8_t* password);
+extern tMSPMemorySegment *MSP430BSL_parseTextFile(void);
+extern tMSPMemorySegment *
+MSP430BSL_parseSRecordArray(const unsigned long eprom_sections,
+			    const unsigned long *eprom_address,
+			    const unsigned long *eprom_length_of_sections,
+			    const unsigned char *eprom);
+extern void MSP430BSL_parsePasswordFile(const uint8_t *passwordfile,
+					uint8_t *password);
 extern void MSP430BSL_cleanUpPointer(void);
-extern tMSPMemorySegment* read_firmware_file(void); 
-
+extern tMSPMemorySegment *read_firmware_file(void);
 
 #endif /* PARSER */

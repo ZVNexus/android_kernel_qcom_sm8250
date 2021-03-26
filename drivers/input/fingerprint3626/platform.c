@@ -52,8 +52,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 	}
 	gpio_direction_input(gf_dev->irq_gpio);
 	pr_info("gf_parse_dts,gf_dev->irq_gpio = %d\n", gf_dev->irq_gpio);
-	
-	
+
 	gf_dev->reset_gpio = of_get_named_gpio(np, "goodix,gpio_reset", 0);
 	if (gf_dev->reset_gpio < 0) {
 		pr_err("falied to get reset gpio!\n");
@@ -64,11 +63,11 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 		pr_err("failed to request reset gpio, rc = %d\n", rc);
 		goto err_irq;
 	}
-	gpio_direction_output(gf_dev->reset_gpio,0);
+	gpio_direction_output(gf_dev->reset_gpio, 0);
 	pr_info("gf_parse_dts,gf_dev->reset_gpio = %d\n", gf_dev->reset_gpio);
 
-
-    gf_dev->vendorId_gpio = of_get_named_gpio(np, "goodix,gpio_vendor_id", 0);
+	gf_dev->vendorId_gpio =
+		of_get_named_gpio(np, "goodix,gpio_vendor_id", 0);
 	if (gf_dev->vendorId_gpio < 0) {
 		pr_err("falied to get vendorId gpio!\n");
 		return gf_dev->vendorId_gpio;
@@ -79,8 +78,8 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 		goto err_irq;
 	}
 	gpio_direction_input(gf_dev->vendorId_gpio);
-	pr_info("gf_parse_dts,gf_dev->vendorId_gpio = %d\n", gf_dev->vendorId_gpio);
-
+	pr_info("gf_parse_dts,gf_dev->vendorId_gpio = %d\n",
+		gf_dev->vendorId_gpio);
 
 	gf_dev->pwr_gpio = of_get_named_gpio(np, "goodix,gpio_ldo", 0);
 	if (gf_dev->pwr_gpio < 0) {
@@ -118,20 +117,20 @@ int gf_power_on(struct gf_dev *gf_dev)
 {
 	int rc = 0;
 
-	gpio_direction_output(gf_dev->pwr_gpio,1);
-    
-    //mdelay(5);
-    msleep(5);
-    gpio_set_value(gf_dev->reset_gpio, 1);
-    
-    if (!gf_dev->power_enabled) {
+	gpio_direction_output(gf_dev->pwr_gpio, 1);
+
+	//mdelay(5);
+	msleep(5);
+	gpio_set_value(gf_dev->reset_gpio, 1);
+
+	if (!gf_dev->power_enabled) {
 		gf_dev->power_enabled = 1;
 		/* TODO: add your power control here */
 	}
-	
 
-	pr_err("gf_power_on end, vendor is %d\n", gpio_get_value(gf_dev->vendorId_gpio));
-	
+	pr_err("gf_power_on end, vendor is %d\n",
+	       gpio_get_value(gf_dev->vendorId_gpio));
+
 	return rc;
 }
 
@@ -143,8 +142,8 @@ int gf_power_off(struct gf_dev *gf_dev)
 		return -ENODEV;
 	}
 
-    gpio_direction_output(gf_dev->pwr_gpio,0);
-    
+	gpio_direction_output(gf_dev->pwr_gpio, 0);
+
 	if (gf_dev->power_enabled) {
 		gf_dev->power_enabled = 0;
 		/* TODO: add your power control here */
@@ -158,7 +157,7 @@ int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 		pr_err("Input buff is NULL.\n");
 		return -ENODEV;
 	}
-	
+
 	gpio_direction_output(gf_dev->reset_gpio, 1);
 	gpio_set_value(gf_dev->reset_gpio, 0);
 	mdelay(3);
@@ -176,4 +175,3 @@ int gf_irq_num(struct gf_dev *gf_dev)
 		return gpio_to_irq(gf_dev->irq_gpio);
 	}
 }
-

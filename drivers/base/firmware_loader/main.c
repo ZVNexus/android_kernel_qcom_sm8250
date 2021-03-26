@@ -309,16 +309,10 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 	size_t msize = INT_MAX;
 
 #ifdef ASUS_ZS661KS_PROJECT
-	/* ASUS BSP : For Change ADSP FW loading path to vendor/firmware +++*/
 	char fw_name[5];
 	bool is_ADSP_readed = false;
-	/* ASUS BSP ---*/
 #endif //ASUS_ZS661KS_PROJECT
 
-#ifdef ZS670KS
-    char fw_name[5];
-    bool is_adsp_readed = false;
-#endif  //ZS670KS
 	/* Already populated data member means we're loading into a buffer */
 	if (fw_priv->data) {
 		id = READING_FIRMWARE_PREALLOC_BUFFER;
@@ -362,28 +356,6 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 		}
 		/* ASUS BSP ---*/
 #endif //ASUS_ZS661KS_PROJECT
-
-#ifdef ZS670KS
-		/* ASUS BSP : For Change ADSP FW loading path to vendor/firmware */
-		snprintf(fw_name, 5, "%s", fw_priv->fw_name);
-		if (!strcmp(fw_name, "adsp")  &&  is_adsp_readed == false ) {
-			if (!strcmp(fw_priv->fw_name, "adsp.mdt"))    {
-				/******************************************************
-				 *  ZS670KS PRJ_ID = 0x4(PROJECT_ZF7_1) & 0x5(PROJECT_ZF7_2)
-				 ******************************************************/
-				if ( g_ASUS_prjID == 0x4 || g_ASUS_prjID == 0x5 )
-					dev_err(device, "[ADSP] This ZS670KS project is : SM8250(0x%x) \n", g_ASUS_prjID);
-				else
-					dev_err(device, "[ADSP] Unknown project(0x%x) \n", g_ASUS_prjID);
-			}
-			if ( g_ASUS_prjID == 0x4 || g_ASUS_prjID == 0x5 )	{
-				is_adsp_readed = true;
-				snprintf(path, PATH_MAX, "%s/%s", "/system/vendor/firmware/q6_ZS670KS_sm8250_image", fw_priv->fw_name);
-				dev_err(device, "[ADSP] Try to load firmware : %s \n", path);
-			}
-		}
-		/* ASUS BSP ---*/
-#endif //ZS670KS
 
 	#ifdef CONFIG_TSPDRV_AW8697
 		/*  AW8697 firmware file loading */
@@ -431,9 +403,6 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv)
 				else {
 					snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
 				}
-#endif
-#ifdef ZS670KS
-				snprintf(path, PATH_MAX, "%s/%s", "/vendor/firmware", fw_priv->fw_name);
 #endif
 				dev_err(device, "[wlan] Try to load firmware : %s \n", path);
 		}

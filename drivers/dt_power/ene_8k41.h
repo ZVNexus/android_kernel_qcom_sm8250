@@ -23,5 +23,5 @@ struct ene_8k41_platform_data {
 	struct pinctrl_state *pins_default;
 
 	struct mutex ene_mutex;
-	struct led_classdev led;	/* LED control */
+	struct led_classdev led; /* LED control */
 };

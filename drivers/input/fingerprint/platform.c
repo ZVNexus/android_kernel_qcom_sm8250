@@ -39,7 +39,7 @@ int gf_parse_dts(struct gf_dev *gf_dev)
 	int rc = 0;
 	struct device *dev = &gf_dev->spi->dev;
 	struct device_node *np = dev->of_node;
-	
+
 	printk("[FP][%s] +++\n", __func__);
 
 	gf_dev->reset_gpio = of_get_named_gpio(np, "fp-gpio-reset", 0);
@@ -93,59 +93,67 @@ int gf_power_on(struct gf_dev *gf_dev)
 	int rc = 0;
 	struct device *dev = &gf_dev->spi->dev;
 	struct device_node *np = dev->of_node;
-    u32 voltage_supply[2];
-	
+	u32 voltage_supply[2];
+
 	pr_info("[FP][%s] start.\n", __func__);
 
 	/* TODO: add your power control here */
 	/* asus bsp add for pwr ldo control +++ */
-    rc = of_property_read_u32_array(np, "asus-fp,vcc-voltage", voltage_supply, 2);
-    if (rc < 0) {
-      printk("[FP][%s] Failed to get regulator avdd voltage !\n", __func__);
-      return rc;
-    }
-    printk("[FP][%s] Regulator voltage get Max = %d, Min = %d \n", __func__, voltage_supply[1], voltage_supply[0]);   
-    gf_dev->vcc = devm_regulator_get(dev, "vcc");
-    if (IS_ERR( gf_dev->vcc)) {
-	  rc = PTR_ERR(gf_dev->vcc);
-	  printk("[FP][%s] Regulator get vcc failed rc=%d\n", __func__, rc);
-	  goto reg_vdd_get_vtg;
+	rc = of_property_read_u32_array(np, "asus-fp,vcc-voltage",
+					voltage_supply, 2);
+	if (rc < 0) {
+		printk("[FP][%s] Failed to get regulator avdd voltage !\n",
+		       __func__);
+		return rc;
+	}
+	printk("[FP][%s] Regulator voltage get Max = %d, Min = %d \n", __func__,
+	       voltage_supply[1], voltage_supply[0]);
+	gf_dev->vcc = devm_regulator_get(dev, "vcc");
+	if (IS_ERR(gf_dev->vcc)) {
+		rc = PTR_ERR(gf_dev->vcc);
+		printk("[FP][%s] Regulator get vcc failed rc=%d\n", __func__,
+		       rc);
+		goto reg_vdd_get_vtg;
 	}
 	if (regulator_count_voltages(gf_dev->vcc) > 0) {
-	  rc = regulator_set_voltage(gf_dev->vcc, voltage_supply[0],  voltage_supply[1]);
-	  if (rc) {
-		    printk("[FP][%s] Regulator set_vcc failed vdd rc=%d\n", __func__, rc);
-		    goto reg_vcc_i2c_put;
-	  }
+		rc = regulator_set_voltage(gf_dev->vcc, voltage_supply[0],
+					   voltage_supply[1]);
+		if (rc) {
+			printk("[FP][%s] Regulator set_vcc failed vdd rc=%d\n",
+			       __func__, rc);
+			goto reg_vcc_i2c_put;
+		}
 	}
-	
+
 	rc = regulator_enable(gf_dev->vcc);
 	if (rc) {
-	  printk("[FP][%s]Regulator vcc enable failed rc=%d\n", __func__, rc);
+		printk("[FP][%s]Regulator vcc enable failed rc=%d\n", __func__,
+		       rc);
 	} else {
-	  printk("[FP][%s]Regulator vcc enable ! \n", __func__);
+		printk("[FP][%s]Regulator vcc enable ! \n", __func__);
 	}
 	/* asus bsp add for pwr ldo control --- */
-		
+
 	mdelay(15);
-	
+
 	if (gpio_is_valid(gf_dev->reset_gpio)) {
 		rc = gpio_direction_output(gf_dev->reset_gpio, 1);
-		if(rc)
-			printk("[FP][%s] reset gpio enable failed, rc = %d\n", __func__, rc);
+		if (rc)
+			printk("[FP][%s] reset gpio enable failed, rc = %d\n",
+			       __func__, rc);
 		else
 			printk("[FP][%s] reset gpio enable !\n", __func__);
 	}
-	
+
 	mdelay(3);
-	
+
 	pr_info("[FP][%s] end.\n", __func__);
-	
+
 reg_vcc_i2c_put:
-    regulator_put(gf_dev->vcc);
+	regulator_put(gf_dev->vcc);
 
 reg_vdd_get_vtg:
-	
+
 	return rc;
 }
 
@@ -181,4 +189,3 @@ int gf_irq_num(struct gf_dev *gf_dev)
 		return gpio_to_irq(gf_dev->irq_gpio);
 	}
 }
-

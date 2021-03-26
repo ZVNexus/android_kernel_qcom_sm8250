@@ -159,12 +159,6 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	barrier();
 }
 
-/*void dump_stack(void)
-{
-	dump_backtrace(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack); //ASUS_BSP Deeo : add for SD Texura module +++
-*/
 #ifdef CONFIG_PREEMPT
 #define S_PREEMPT " PREEMPT"
 #else

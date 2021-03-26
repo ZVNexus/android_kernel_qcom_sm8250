@@ -284,15 +284,8 @@ static void evdev_pass_values(struct evdev_client *client,
 	bool wakeup = false;
 // ASUS_BSP +++ Touch
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8
-#if 0
-	static u32 GoodixPreTSTimeStamp = 0;
-	u32 TimeStampDiff = 0;
-	static struct timespec temp_t, prev_t;
-	u32 TimeStampDiffInt = 0;
-	u32 TimeStampDiffFloat = 0;
-#endif
 	static bool touch_press = false;
-	static struct input_event pre_event; 
+	static struct input_event pre_event;
 	static bool skip_update_ts = true;
 	static bool first_sync = false;
 	static bool touch_up_flag = false;
@@ -304,7 +297,7 @@ static void evdev_pass_values(struct evdev_client *client,
 	static int slot_record = 0;
 	int i = 0, j = 0;
 	int pre_type = 0;
-	static struct input_event ori_event; 
+	static struct input_event ori_event;
 #endif
 // ASUS_BSP --- Touch
 
@@ -353,7 +346,7 @@ static void evdev_pass_values(struct evdev_client *client,
 
 			wakeup = true;
 		}
-		
+
 // ASUS_BSP +++ Touch
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_GTX8
 #if 0

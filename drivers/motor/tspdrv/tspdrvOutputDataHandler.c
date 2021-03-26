@@ -29,157 +29,152 @@
 ** =========================================================================
 */
 
-typedef struct
-{
-    VibeUInt8 nActuatorIndex;  /* 1st byte is actuator index */
-    VibeUInt8 nBitDepth;       /* 2nd byte is bit depth */
-    VibeUInt8 nBufferSize;     /* 3rd byte is data size */
-    VibeUInt8 dataBuffer[VIBE_OUTPUT_SAMPLE_SIZE];
+typedef struct {
+	VibeUInt8 nActuatorIndex; /* 1st byte is actuator index */
+	VibeUInt8 nBitDepth; /* 2nd byte is bit depth */
+	VibeUInt8 nBufferSize; /* 3rd byte is data size */
+	VibeUInt8 dataBuffer[VIBE_OUTPUT_SAMPLE_SIZE];
 } actuator_samples_buffer;
 
 /* Buffer to store data sent to SPI */
-#define SPI_BUFFER_SIZE (NUM_ACTUATORS * (VIBE_OUTPUT_SAMPLE_SIZE + SPI_HEADER_SIZE))
-static actuator_samples_buffer g_SamplesBuffer[NUM_ACTUATORS] = {{0}}; 
+#define SPI_BUFFER_SIZE                                                        \
+	(NUM_ACTUATORS * (VIBE_OUTPUT_SAMPLE_SIZE + SPI_HEADER_SIZE))
+static actuator_samples_buffer g_SamplesBuffer[NUM_ACTUATORS] = { { 0 } };
 
 int SaveOutputData(const char *outputDataBuffer, int count)
 {
-    int i = 0;
+	int i = 0;
 
-    /* The below code is not valid if SPI header size is not 3 */
+	/* The below code is not valid if SPI header size is not 3 */
 #if (SPI_HEADER_SIZE != 3)
 #error "SPI_HEADER_SIZE expected to be 3"
 #endif
 
-    /* Check buffer size */
-    if ((count < SPI_HEADER_SIZE) || (count > SPI_BUFFER_SIZE))
-    {
-        DbgOutErr(("SaveOutputData: invalid write buffer size.\n"));
-        return 0;
-    }
+	/* Check buffer size */
+	if ((count < SPI_HEADER_SIZE) || (count > SPI_BUFFER_SIZE)) {
+		DbgOutErr(("SaveOutputData: invalid write buffer size.\n"));
+		return 0;
+	}
 
-    /* Check argument */
-    if (0 == outputDataBuffer)
-    {
-        DbgOutErr(("SaveOutputData: outputDataBuffer invalid.\n"));
-        return 0;
-    }
+	/* Check argument */
+	if (0 == outputDataBuffer) {
+		DbgOutErr(("SaveOutputData: outputDataBuffer invalid.\n"));
+		return 0;
+	}
 
-    while (i < count)
-    {
-        actuator_samples_buffer* pInputBuffer = (actuator_samples_buffer*)(&outputDataBuffer[i]);
+	while (i < count) {
+		actuator_samples_buffer *pInputBuffer =
+			(actuator_samples_buffer *)(&outputDataBuffer[i]);
 
-        if ((i + SPI_HEADER_SIZE) > count)
-        {
-            /*
+		if ((i + SPI_HEADER_SIZE) > count) {
+			/*
             ** Index is about to go beyond the buffer size.
             ** (Should never happen).
             */
-            DbgOutFatal(("SaveOutputData: invalid buffer index.\n"));
-        }
+			DbgOutFatal(
+				("SaveOutputData: invalid buffer index.\n"));
+		}
 
-        /* Check bit depth */
-        if (8 != pInputBuffer->nBitDepth)
-        {
-            DbgOutWarn(("SaveOutputData: invalid bit depth. Use default value (8).\n"));
-        }
+		/* Check bit depth */
+		if (8 != pInputBuffer->nBitDepth) {
+			DbgOutWarn((
+				"SaveOutputData: invalid bit depth. Use default value (8).\n"));
+		}
 
-        /* Check buffer size */
-        if ((i + SPI_HEADER_SIZE + pInputBuffer->nBufferSize) > count)
-        {
-            /*
+		/* Check buffer size */
+		if ((i + SPI_HEADER_SIZE + pInputBuffer->nBufferSize) > count) {
+			/*
             ** Index is about to go beyond the buffer size.
             ** (Should never happen).
             */
-            DbgOutFatal(("SaveOutputData: invalid data size.\n"));
-        }
-        
-        /* Check actuator index */
-        if (NUM_ACTUATORS <= pInputBuffer->nActuatorIndex)
-        {
-            DbgOutErr(("SaveOutputData: invalid actuator index.\n"));
-            i += (SPI_HEADER_SIZE + pInputBuffer->nBufferSize);
-            continue;
-        }
+			DbgOutFatal(("SaveOutputData: invalid data size.\n"));
+		}
+
+		/* Check actuator index */
+		if (NUM_ACTUATORS <= pInputBuffer->nActuatorIndex) {
+			DbgOutErr(
+				("SaveOutputData: invalid actuator index.\n"));
+			i += (SPI_HEADER_SIZE + pInputBuffer->nBufferSize);
+			continue;
+		}
 
 #ifndef IMMVIBESPI_USE_BUFFERFULL
-        if ((count == SPI_HEADER_SIZE) && (0 == pInputBuffer->nBufferSize))
-        {
-            /* 
+		if ((count == SPI_HEADER_SIZE) &&
+		    (0 == pInputBuffer->nBufferSize)) {
+			/* 
             ** Get out of the loop. An "empty" packet (header with data size equal to 0)
             ** is used by the user mode daemon to start blocking-timer process,
             ** even if no output force data is sent.
             */
-            break;
-        }
+			break;
+		}
 #endif
 
-        /* Store the data in the free buffer of the given actuator */
-        memcpy(&(g_SamplesBuffer[pInputBuffer->nActuatorIndex]), &outputDataBuffer[i], (SPI_HEADER_SIZE + pInputBuffer->nBufferSize));
+		/* Store the data in the free buffer of the given actuator */
+		memcpy(&(g_SamplesBuffer[pInputBuffer->nActuatorIndex]),
+		       &outputDataBuffer[i],
+		       (SPI_HEADER_SIZE + pInputBuffer->nBufferSize));
 
-        /* Increment buffer index */
-        i += (SPI_HEADER_SIZE + pInputBuffer->nBufferSize);
-    }
+		/* Increment buffer index */
+		i += (SPI_HEADER_SIZE + pInputBuffer->nBufferSize);
+	}
 
-    return 1;
+	return 1;
 }
 
 bool SendOutputData(void)
 {
-    int i;
-    bool ret = 0;
+	int i;
+	bool ret = 0;
 
-    for (i = 0; i < NUM_ACTUATORS; i++) 
-    {
-        actuator_samples_buffer *pCurrentActuatorSample = &(g_SamplesBuffer[i]);
+	for (i = 0; i < NUM_ACTUATORS; i++) {
+		actuator_samples_buffer *pCurrentActuatorSample =
+			&(g_SamplesBuffer[i]);
 
 #ifndef IMMVIBESPI_USE_BUFFERFULL
-        if (pCurrentActuatorSample->nBufferSize)
+		if (pCurrentActuatorSample->nBufferSize)
 #endif
-        {
+		{
 
-            /* DbgOutErr(("SendOutputData: 2: Size, BitDepth: %d, Buffer: %d, dataBuffer[0]:%d\n", 
+			/* DbgOutErr(("SendOutputData: 2: Size, BitDepth: %d, Buffer: %d, dataBuffer[0]:%d\n", 
             pCurrentActuatorSample->nBitDepth, 
                 pCurrentActuatorSample->nBufferSize,
                 pCurrentActuatorSample->dataBuffer[0]));*/
 
-            /* Play the current buffer */
-            ImmVibeSPI_ForceOut_SetSamples(
-                i, 
-                pCurrentActuatorSample->nBitDepth, 
-                pCurrentActuatorSample->nBufferSize,
-                pCurrentActuatorSample->dataBuffer);
+			/* Play the current buffer */
+			ImmVibeSPI_ForceOut_SetSamples(
+				i, pCurrentActuatorSample->nBitDepth,
+				pCurrentActuatorSample->nBufferSize,
+				pCurrentActuatorSample->dataBuffer);
 
-            ret = 1;
+			ret = 1;
 
-            /* The current buffer is emptied */
-            pCurrentActuatorSample->nBufferSize = 0;
-        }
-    }
+			/* The current buffer is emptied */
+			pCurrentActuatorSample->nBufferSize = 0;
+		}
+	}
 
-    return ret;
+	return ret;
 }
 
 void ResetOutputData(void)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < NUM_ACTUATORS; i++)
-    {
-        g_SamplesBuffer[i].nBufferSize = 0;
-    }
+	for (i = 0; i < NUM_ACTUATORS; i++) {
+		g_SamplesBuffer[i].nBufferSize = 0;
+	}
 }
 
 bool IsOutputDataBufferEmpty(void)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < NUM_ACTUATORS; i++)
-    {
-        if (g_SamplesBuffer[i].nBufferSize)
-        {
-            return 0;
-        }
-    }
+	for (i = 0; i < NUM_ACTUATORS; i++) {
+		if (g_SamplesBuffer[i].nBufferSize) {
+			return 0;
+		}
+	}
 
-    return 1;
+	return 1;
 }

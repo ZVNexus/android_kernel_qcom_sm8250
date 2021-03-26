@@ -23,9 +23,9 @@
 #include <linux/usb.h>
 //#include <linux/msm_drm_notify.h>
 
-#define RGB_MAX 21   //for rainbow color setting
-int mode2_state=0;
-int apply_state=0;
+#define RGB_MAX 21 //for rainbow color setting
+int mode2_state = 0;
+int apply_state = 0;
 static struct ms51_platform_data *g_pdata;
 
 static u32 g_red;
@@ -35,7 +35,7 @@ static u32 g_mode;
 static u32 g_speed;
 static u32 g_led_on;
 static u32 g_led2_on;
-static u32 dongle_switch_mode=0;
+static u32 dongle_switch_mode = 0;
 // For Charger mode
 extern bool g_Charger_mode;
 /*static int i2c_read_bytes(struct i2c_client *client, char *write_buf, int writelen, char *read_buf, int readlen)
@@ -59,45 +59,47 @@ extern bool g_Charger_mode;
 	return ret;
 }*/
 
-static int i2c_write_bytes(struct i2c_client *client, char *write_buf, int writelen)
+static int i2c_write_bytes(struct i2c_client *client, char *write_buf,
+			   int writelen)
 {
 	struct i2c_msg msg;
-	int ret=-1;
+	int ret = -1;
 
-	msg.flags = !I2C_M_RD;		//write
+	msg.flags = !I2C_M_RD; //write
 	msg.addr = client->addr;
 	msg.len = writelen;
-	msg.buf = write_buf; 
+	msg.buf = write_buf;
 
-	ret = i2c_transfer(client->adapter,&msg, 1);
+	ret = i2c_transfer(client->adapter, &msg, 1);
 	return ret;
-} 
+}
 
 static int ms51_read_bytes(struct i2c_client *client, short addr, char *data)
 {
 	int err = 0;
-	unsigned char buf[16] = {0};
+	unsigned char buf[16] = { 0 };
 	struct i2c_msg msgs;
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
 
 	//printk("[AURA_MS51_INBOX] ms51_read_bytes : buf[0] : 0x%x, buf[1] : 0x%x\n", buf[0], buf[1]);
 	err = i2c_write_bytes(client, buf, 2);
-	if (err !=1)
-		printk("[AURA_MS51_INBOX] i2c_write_bytes addr: 0x%x err:%d\n", addr,err);
+	if (err != 1)
+		printk("[AURA_MS51_INBOX] i2c_write_bytes addr: 0x%x err:%d\n",
+		       addr, err);
 
 	/*buf[0] = 0xAA;
 	err = i2c_read_bytes(client, buf, 1, data, 1);	//send read command
 	if (err != 2)
 		printk("[AURA_MS51_INBOX] i2c_read_bytes:err %d\n", err);*/
 
-	msleep(1);//wait for ic
+	msleep(1); //wait for ic
 	//read data
-	msgs.flags = I2C_M_RD;		//read
+	msgs.flags = I2C_M_RD; //read
 	msgs.addr = client->addr;
 	msgs.len = 1;
 	msgs.buf = data;
-	err = i2c_transfer(client->adapter,&msgs, 1);
+	err = i2c_transfer(client->adapter, &msgs, 1);
 
 	return err;
 }
@@ -105,37 +107,36 @@ static int ms51_read_bytes(struct i2c_client *client, short addr, char *data)
 static int ms51_read_words(struct i2c_client *client, short addr, char *data)
 {
 	int err = 0;
-	unsigned char buf[16] = {0};
+	unsigned char buf[16] = { 0 };
 	struct i2c_msg msgs;
 
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
 
-
 	//printk("[AURA_MS51_INBOX] ms51_read_words : buf[0] : 0x%x, buf[1] : 0x%x\n", buf[0], buf[1]);
 	err = i2c_write_bytes(client, buf, 2);
-	if (err !=1)
-		printk("[AURA_MS51_INBOX] i2c_write_bytes addr:0x%x, err:%d\n", addr,err);
+	if (err != 1)
+		printk("[AURA_MS51_INBOX] i2c_write_bytes addr:0x%x, err:%d\n",
+		       addr, err);
 	msleep(1);
 	/*buf[0] = 0xAA;
 	err = i2c_read_bytes(client, buf, 1, data, 2);	//send read command
 	if (err != 2)
 		printk("[AURA_MS51_INBOX] i2c_read_bytes:err %d\n", err);*/
 	//read data
-	msgs.flags = I2C_M_RD;		//read
+	msgs.flags = I2C_M_RD; //read
 	msgs.addr = client->addr;
 	msgs.len = 2;
 	msgs.buf = data;
-	err = i2c_transfer(client->adapter,&msgs, 1);
+	err = i2c_transfer(client->adapter, &msgs, 1);
 
 	return err;
 }
 
-
 static int ms51_write_bytes(struct i2c_client *client, short addr, char value)
 {
 	int err = 0;
-	unsigned char buf[16] = {0};
+	unsigned char buf[16] = { 0 };
 
 	buf[0] = (addr >> 8) & 0xFF;
 	buf[1] = addr & 0xFF;
@@ -143,8 +144,9 @@ static int ms51_write_bytes(struct i2c_client *client, short addr, char value)
 
 	//printk("[AURA_MS51_INBOX] ms51_write_bytes : buf[0] : 0x%x, buf[1] : 0x%x, value : 0x%x\n", buf[0], buf[1], value);
 	err = i2c_write_bytes(client, buf, 3);
-	if (err !=1)
-		printk("[AURA_MS51_INBOX] i2c_write_bytes addr:0x%x, err:%d\n", addr,err);
+	if (err != 1)
+		printk("[AURA_MS51_INBOX] i2c_write_bytes addr:0x%x, err:%d\n",
+		       addr, err);
 
 	return err;
 }
@@ -154,10 +156,10 @@ static ssize_t fan_on(struct i2c_client *client)
 {
 	int err = 0;
 
-	printk("[INBOX_FAN] %s\n",__func__);
+	printk("[INBOX_FAN] %s\n", __func__);
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_write_bytes(client, 0x6007, 1);
-	if (err !=1){
+	if (err != 1) {
 		printk("[INBOX_FAN] ms51_write_bytes:0x6007 err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return -1;
@@ -170,10 +172,10 @@ static ssize_t fan_off(struct i2c_client *client)
 {
 	int err = 0;
 
-	printk("[INBOX_FAN] %s\n",__func__);
+	printk("[INBOX_FAN] %s\n", __func__);
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_write_bytes(client, 0x6007, 0);
-	if (err !=1){
+	if (err != 1) {
 		printk("[INBOX_FAN] ms51_write_bytes:0x6007 err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return -1;
@@ -184,26 +186,26 @@ static ssize_t fan_off(struct i2c_client *client)
 
 static unsigned char get_fan_vdd(struct i2c_client *client)
 {
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_bytes(client, 0x6007, data);
-	if (err != 1)
-	{
+	if (err != 1) {
 		printk("[INBOX_FAN] get_fan_vdd:0x6007 err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return -1;
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
-	printk("[INBOX_FAN] Get Fan VDD is %d\n",data[0]);
+	printk("[INBOX_FAN] Get Fan VDD is %d\n", data[0]);
 	return data[0];
 }
 
-static ssize_t fan_vdd_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t fan_vdd_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_bytes(client, 0x6007, data);
@@ -213,10 +215,11 @@ static ssize_t fan_vdd_show(struct device *dev, struct device_attribute *attr, c
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[INBOX_FAN] Fan VDD is %d\n", data[0]);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t fan_vdd_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t fan_vdd_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	u32 reg_val;
@@ -226,22 +229,22 @@ static ssize_t fan_vdd_store(struct device *dev, struct device_attribute *attr, 
 	if (ret)
 		return count;
 
-	if(reg_val==0x1){
+	if (reg_val == 0x1) {
 		fan_on(client);
-	}else{
+	} else {
 		fan_off(client);
 	}
 	return count;
 }
 
 //+++inbox user fan
-static ssize_t inbox_user_fan(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t inbox_user_fan(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t size)
 {
 	int num = 99;
 
 	struct i2c_client *client = to_i2c_client(dev);
-	u32  tmp;
+	u32 tmp;
 	int err = 0;
 	mutex_lock(&g_pdata->update_lock);
 	//printk("[INBOX_FAN] -----%s\n",client->name);
@@ -262,124 +265,127 @@ static ssize_t inbox_user_fan(struct device *dev,
 		printk("[INBOX_FAN] %s :enable_pin is already set \n",__func__);
 	}*/
 	switch (num) {
-		case 0:
-			//printk("[INBOX_FAN] %s : fan_type 0: close +++\n",__func__);
-			tmp = 0;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] user_type 0, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
+	case 0:
+		//printk("[INBOX_FAN] %s : fan_type 0: close +++\n",__func__);
+		tmp = 0;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] user_type 0, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
 
-			err = fan_off(client);
-			if(!err){
-				printk("[INBOX_FAN]: %s :fan off\n",__func__);
+		err = fan_off(client);
+		if (!err) {
+			printk("[INBOX_FAN]: %s :fan off\n", __func__);
+		}
+		break;
+	case 1:
+		//printk("[INBOX_FAN] %s : fan_type 1: low +++\n",__func__);
+		tmp = 0x78;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] user_type 1, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			break;
-		case 1:
-			//printk("[INBOX_FAN] %s : fan_type 1: low +++\n",__func__);
-			tmp = 0x78;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] user_type 1, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
-			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the first level
-			break;
-		case 2:
-			//printk("[INBOX_FAN] %s : fan_type 2: medium +++\n",__func__);
-			tmp = 0x96;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] user_type 2, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+		//the first level
+		break;
+	case 2:
+		//printk("[INBOX_FAN] %s : fan_type 2: medium +++\n",__func__);
+		tmp = 0x96;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] user_type 2, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
+		}
 
-			/*else {
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
 
-			//the second level
-			break;
-		case 3:
-			//printk("[INBOX_FAN] %s : fan_type 3: high +++\n",__func__);
-			tmp = 0xB4;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] user_type 3, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+		//the second level
+		break;
+	case 3:
+		//printk("[INBOX_FAN] %s : fan_type 3: high +++\n",__func__);
+		tmp = 0xB4;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] user_type 3, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
+		}
 
-			/*else {
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the third level
-			break;
-		case 4:
-			//printk("[INBOX_FAN] %s : fan_type 4: turbo +++\n",__func__);
-			tmp = 0xF0;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] user_type 4, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
+		//the third level
+		break;
+	case 4:
+		//printk("[INBOX_FAN] %s : fan_type 4: turbo +++\n",__func__);
+		tmp = 0xF0;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] user_type 4, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
 
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the forth level
-			break;
-		default:
-			printk("[INBOX_FAN] %s :mode isn't 0-4, unsupport\n",__func__);
-
+		//the forth level
+		break;
+	default:
+		printk("[INBOX_FAN] %s :mode isn't 0-4, unsupport\n", __func__);
 	}
 	msleep(500); //Wait 0.5s
 	mutex_unlock(&g_pdata->update_lock);
@@ -388,9 +394,9 @@ static ssize_t inbox_user_fan(struct device *dev,
 
 //+++inbox thermal fan
 static ssize_t inbox_thermal_fan(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
+				 struct device_attribute *attr, const char *buf,
+				 size_t size)
 {
-
 	int num = 99;
 
 	struct i2c_client *client = to_i2c_client(dev);
@@ -417,118 +423,122 @@ static ssize_t inbox_thermal_fan(struct device *dev,
 		printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 	}*/
 	switch (num) {
-		case 0:
-		   // printk("[INBOX_FAN] %s : thermal_type 0: default 1 (low) +++\n",__func__);
-			tmp = 0x0;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] thermal_type 0, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-						err = fan_off(client);
-			if(!err){
-				printk("[INBOX_FAN]: %s :fan off\n",__func__);
+	case 0:
+		// printk("[INBOX_FAN] %s : thermal_type 0: default 1 (low) +++\n",__func__);
+		tmp = 0x0;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] thermal_type 0, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		err = fan_off(client);
+		if (!err) {
+			printk("[INBOX_FAN]: %s :fan off\n", __func__);
+		}
+		break;
+	case 1:
+		//printk("[INBOX_FAN] %s : fan_type 1: low +++\n",__func__);
+		tmp = 0x78;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] thermal_type 1, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			break;
-		case 1:
-			//printk("[INBOX_FAN] %s : fan_type 1: low +++\n",__func__);
-			tmp = 0x78;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] thermal_type 1, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
-			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the first level
-			break;
-		case 2:
-			//printk("[INBOX_FAN] %s : fan_type 2: medium +++\n",__func__);
-			tmp = 0x96;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] thermal_type 2, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+		//the first level
+		break;
+	case 2:
+		//printk("[INBOX_FAN] %s : fan_type 2: medium +++\n",__func__);
+		tmp = 0x96;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] thermal_type 2, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the second level
-			break;
-		case 3:
-			//printk("[INBOX_FAN] %s : fan_type 3: high +++\n",__func__);
-			tmp = 0xB4;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] thermal_type 3, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+		//the second level
+		break;
+	case 3:
+		//printk("[INBOX_FAN] %s : fan_type 3: high +++\n",__func__);
+		tmp = 0xB4;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] thermal_type 3, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the third level
-			break;
-		case 4:
-			//printk("[INBOX_FAN] %s : fan_type 4: turbo +++\n",__func__);
-			tmp = 0xF0;
-			mutex_lock(&g_pdata->ms51_mutex);
-			printk("[INBOX_FAN] thermal_type 4, pwm : 0x%x\n", tmp);
-			err = ms51_write_bytes(client, 0x6001 ,tmp);
-			if (err !=1)
-				printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
-			mutex_unlock(&g_pdata->ms51_mutex);
-			msleep(30);
-			if (get_fan_vdd(client)!= 1) {
-				printk("[INBOX_FAN] %s : enable fan\n",__func__);
-				err = fan_on(client);
-				if(err){
-					printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",__func__,err);
-					mutex_unlock(&g_pdata->update_lock);
-					return size;
-				}
+		//the third level
+		break;
+	case 4:
+		//printk("[INBOX_FAN] %s : fan_type 4: turbo +++\n",__func__);
+		tmp = 0xF0;
+		mutex_lock(&g_pdata->ms51_mutex);
+		printk("[INBOX_FAN] thermal_type 4, pwm : 0x%x\n", tmp);
+		err = ms51_write_bytes(client, 0x6001, tmp);
+		if (err != 1)
+			printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
+		mutex_unlock(&g_pdata->ms51_mutex);
+		msleep(30);
+		if (get_fan_vdd(client) != 1) {
+			printk("[INBOX_FAN] %s : enable fan\n", __func__);
+			err = fan_on(client);
+			if (err) {
+				printk("[INBOX_FAN]: %s :fan on failed, err=%d\n",
+				       __func__, err);
+				mutex_unlock(&g_pdata->update_lock);
+				return size;
 			}
-			/*else {
+		}
+		/*else {
 				printk("[INBOX_FAN] %s : enable_pin is already set \n",__func__);
 			}*/
-			//the forth level
-			break;
-		default:
-			printk("[INBOX_FAN] %s :mode isn't 0-4, unsupport\n",__func__);
+		//the forth level
+		break;
+	default:
+		printk("[INBOX_FAN] %s :mode isn't 0-4, unsupport\n", __func__);
 	}
 	msleep(500); //Wait 0.5s
 	mutex_unlock(&g_pdata->update_lock);
@@ -536,39 +546,40 @@ static ssize_t inbox_thermal_fan(struct device *dev,
 }
 //---inbox thermal fan
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 	long rpm = 0;
 	int raw_data = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	err = ms51_read_words(client, 0x6002, data);   //RPM=24M/(data*512)
+	err = ms51_read_words(client, 0x6002, data); //RPM=24M/(data*512)
 	if (err != 1)
 		printk("[INBOX_FAN] show_fan: 0x6002 err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	raw_data = data[0]*256+data[1];
+	raw_data = data[0] * 256 + data[1];
 	//printk("[INBOX_FAN] show_fan: raw_data = 0x%4x\n", raw_data);
-	if(raw_data != 0){
+	if (raw_data != 0) {
 		rpm = (24 * 1000000) >> 9;
-		do_div(rpm,raw_data);
-		printk("[INBOX FAN] show_fan : raw_data = 0x%x(%d)\n", raw_data, rpm*30);
-		return snprintf(buf, PAGE_SIZE,"%ld\n", rpm*30);
-	}else{
+		do_div(rpm, raw_data);
+		printk("[INBOX FAN] show_fan : raw_data = 0x%x(%d)\n", raw_data,
+		       rpm * 30);
+		return snprintf(buf, PAGE_SIZE, "%ld\n", rpm * 30);
+	} else {
 		printk("[INBOX FAN] show_fan : raw_data = 0x%x\n", raw_data);
-		return snprintf(buf, PAGE_SIZE,"%d\n", raw_data);
+		return snprintf(buf, PAGE_SIZE, "%d\n", raw_data);
 	}
 }
 
-static ssize_t show_reg(struct device *dev,
-	struct device_attribute *attr, char *buf)
+static ssize_t show_reg(struct device *dev, struct device_attribute *attr,
+			char *buf)
 {
-
 	struct i2c_client *client = to_i2c_client(dev);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -577,13 +588,14 @@ static ssize_t show_reg(struct device *dev,
 		printk("[INBOX_FAN] show_reg:0x6001 err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
 //+++pwm_store
-static ssize_t pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t size)
 {
-	unsigned char  reg_value = 0;
+	unsigned char reg_value = 0;
 	int err = 0;
 	struct i2c_client *client = to_i2c_client(dev);
 
@@ -591,8 +603,8 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr, cons
 	kstrtou8(buf, 0, &reg_value);
 	printk("[INBOX_FAN] pwm_store : pwm set to %x\n", reg_value);
 	mutex_lock(&g_pdata->ms51_mutex);
-	err = ms51_write_bytes(client, 0x6001 ,reg_value);
-	if (err !=1)
+	err = ms51_write_bytes(client, 0x6001, reg_value);
+	if (err != 1)
 		printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
 	mutex_unlock(&g_pdata->ms51_mutex);
 
@@ -601,46 +613,53 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr, cons
 //---pwm_store
 
 //+++write to reg
-static ssize_t write_to_reg(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+static ssize_t write_to_reg(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t size)
 {
 	int reg_addr = 0, reg_value = 0;
 	int err = 0;
 	struct i2c_client *client = to_i2c_client(dev);
 
 	sscanf(buf, "%x %x", &reg_addr, &reg_value);
-	printk("[INBOX_FAN] %s : reg_addr=%x, reg_value=%x\n",__func__,reg_addr,reg_value);
+	printk("[INBOX_FAN] %s : reg_addr=%x, reg_value=%x\n", __func__,
+	       reg_addr, reg_value);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_write_bytes(client, reg_addr, reg_value);
-	if (err !=1){
+	if (err != 1) {
 		printk("[INBOX_FAN] ms51_write_bytes:err %d\n", err);
 		//return size;
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
 
-
 	return size;
 }
 //---write to reg
 
-#define NOT_USED		-1
-#define FAN_INPUT		0
+#define NOT_USED -1
+#define FAN_INPUT 0
 //for the node
-#define SENSOR_ATTR_FAN				  		\
-	SENSOR_ATTR_2(VDD, S_IRUGO|S_IWUSR, fan_vdd_show, fan_vdd_store, NOT_USED, 0), \
-	SENSOR_ATTR_2(debug_write_to_reg, S_IWUSR, NULL, write_to_reg, NOT_USED, 0),\
-	SENSOR_ATTR_2(inbox_user_type, S_IWUSR, NULL, inbox_user_fan, NOT_USED, 0), \
-	SENSOR_ATTR_2(inbox_thermal_type, S_IWUSR, NULL, inbox_thermal_fan, NOT_USED, 0), \
-	SENSOR_ATTR_2(PWM, S_IRUGO|S_IWUSR , show_reg, pwm_store, NOT_USED, 0), \
-	SENSOR_ATTR_2(RPM, S_IRUGO, show_fan, NULL, FAN_INPUT, 0)
+#define SENSOR_ATTR_FAN                                                        \
+	SENSOR_ATTR_2(VDD, S_IRUGO | S_IWUSR, fan_vdd_show, fan_vdd_store,     \
+		      NOT_USED, 0),                                            \
+		SENSOR_ATTR_2(debug_write_to_reg, S_IWUSR, NULL, write_to_reg, \
+			      NOT_USED, 0),                                    \
+		SENSOR_ATTR_2(inbox_user_type, S_IWUSR, NULL, inbox_user_fan,  \
+			      NOT_USED, 0),                                    \
+		SENSOR_ATTR_2(inbox_thermal_type, S_IWUSR, NULL,               \
+			      inbox_thermal_fan, NOT_USED, 0),                 \
+		SENSOR_ATTR_2(PWM, S_IRUGO | S_IWUSR, show_reg, pwm_store,     \
+			      NOT_USED, 0),                                    \
+		SENSOR_ATTR_2(RPM, S_IRUGO, show_fan, NULL, FAN_INPUT, 0)
 
 static struct sensor_device_attribute_2 fan_attr[] = {
 	SENSOR_ATTR_FAN,
 };
 
-#endif  //end if of the FAN_ADD
+#endif //end if of the FAN_ADD
 
-static ssize_t red1_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t red1_pwm_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -654,35 +673,38 @@ static ssize_t red1_pwm_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return count;
 
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->RED_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->RED_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] red1_pwm_store,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] red1 tmp %d\n", tmp);
 	err = ms51_write_bytes(client, 0x8013, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t red1_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t red1_pwm_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	err = ms51_read_bytes(client, 0x8013,data);
+	err = ms51_read_bytes(client, 0x8013, data);
 	if (err != 1)
 		printk("[AURA_MS51_INBOX] red1_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t green1_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t green1_pwm_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -696,23 +718,24 @@ static ssize_t green1_pwm_store(struct device *dev, struct device_attribute *att
 	if (ret)
 		return count;
 
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->GREEN_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->GREEN_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] green1_pwm_store,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] green1 tmp %d\n", tmp);
-	err = ms51_write_bytes(client, 0x8014,tmp);
-	if (err !=1)
+	err = ms51_write_bytes(client, 0x8014, tmp);
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t green1_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t green1_pwm_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -721,10 +744,12 @@ static ssize_t green1_pwm_show(struct device *dev, struct device_attribute *attr
 		printk("[AURA_MS51_INBOX] green1_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t blue1_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t blue1_pwm_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -738,23 +763,24 @@ static ssize_t blue1_pwm_store(struct device *dev, struct device_attribute *attr
 	if (ret)
 		return count;
 
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->BLUE_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->BLUE_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] blue1_pwm_store,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] blue1 tmp %d\n", tmp);
 	err = ms51_write_bytes(client, 0x8015, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t blue1_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t blue1_pwm_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -763,10 +789,11 @@ static ssize_t blue1_pwm_show(struct device *dev, struct device_attribute *attr,
 		printk("[AURA_MS51_INBOX] blue1_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t red_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t red_pwm_store(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -774,25 +801,24 @@ static ssize_t red_pwm_store(struct device *dev, struct device_attribute *attr, 
 	int err = 0;
 	ssize_t ret;
 
-
 	ret = kstrtou32(buf, 10, &reg_val);
 	if (ret)
 		return count;
 
 	//pr_debug("[AURA_MS51_INBOX] %s reg_val=%d.\n",__func__,reg_val);
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->RED_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->RED_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] red_pwm_store first pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] red tmp %d\n", tmp);
-	g_red=tmp;
+	g_red = tmp;
 	err = ms51_write_bytes(client, 0x8010, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	//printk("[AURA_MS51_INBOX] red_pwm_store second pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	err = ms51_write_bytes(client, 0x8013, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
@@ -800,10 +826,11 @@ static ssize_t red_pwm_store(struct device *dev, struct device_attribute *attr, 
 	return count;
 }
 
-static ssize_t red_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t red_pwm_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -812,10 +839,12 @@ static ssize_t red_pwm_show(struct device *dev, struct device_attribute *attr,ch
 		printk("[AURA_MS51_INBOX] red_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t green_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t green_pwm_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -830,29 +859,30 @@ static ssize_t green_pwm_store(struct device *dev, struct device_attribute *attr
 		return count;
 
 	//pr_debug("[AURA_MS51_INBOX] %s reg_val=%d.\n",__func__,reg_val);
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->GREEN_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->GREEN_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] green_pwm_store first pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] green tmp %d\n", tmp);
-	g_green=tmp;
+	g_green = tmp;
 	err = ms51_write_bytes(client, 0x8011, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	//printk("[AURA_MS51_INBOX] green_pwm_store second pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
-	err = ms51_write_bytes(client, 0x8014,tmp);
-	if (err !=1)
+	err = ms51_write_bytes(client, 0x8014, tmp);
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t green_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t green_pwm_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -861,10 +891,11 @@ static ssize_t green_pwm_show(struct device *dev, struct device_attribute *attr,
 		printk("[AURA_MS51_INBOX] green_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t blue_pwm_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t blue_pwm_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -879,30 +910,31 @@ static ssize_t blue_pwm_store(struct device *dev, struct device_attribute *attr,
 		return count;
 
 	//pr_debug("[AURA_MS51_INBOX] %s reg_val=%d.\n",__func__,reg_val);
-	tmp = DIV_ROUND_CLOSEST(reg_val*(platform_data->BLUE_MAX), 255);
+	tmp = DIV_ROUND_CLOSEST(reg_val * (platform_data->BLUE_MAX), 255);
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] blue_pwm_store first pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 	//printk("[AURA_MS51_INBOX] blue tmp %d\n", tmp);
-	g_blue=tmp;
+	g_blue = tmp;
 	err = ms51_write_bytes(client, 0x8012, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	//printk("[AURA_MS51_INBOX] blue_pwm_store second pwm,client->addr : 0x%x,  reg_val : 0x%x.\n", client->addr, reg_val);
 
 	err = ms51_write_bytes(client, 0x8015, tmp);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t blue_pwm_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t blue_pwm_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -911,105 +943,111 @@ static ssize_t blue_pwm_show(struct device *dev, struct device_attribute *attr,c
 		printk("[AURA_MS51_INBOX] blue_pwm_show:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t led_color_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t led_color_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	//struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
-	int reg[3] = {0};
+	int reg[3] = { 0 };
 	int err = 0;
 
 	printk("[AURA_MS51_INBOX] led_color_store.\n");
-	sscanf(buf, "%x %x %x", &reg[0], &reg[1],&reg[2]);
+	sscanf(buf, "%x %x %x", &reg[0], &reg[1], &reg[2]);
 
-	if(((reg[0]&0xF0) != 0xD0)||((reg[0]&0x0F) < 0 || (reg[0]&0x0F) > 0xC )){
-		printk("[AURA_MS51_INBOX] led_color_store: error input byte[0]=%d\n", reg[0]);
+	if (((reg[0] & 0xF0) != 0xD0) ||
+	    ((reg[0] & 0x0F) < 0 || (reg[0] & 0x0F) > 0xC)) {
+		printk("[AURA_MS51_INBOX] led_color_store: error input byte[0]=%d\n",
+		       reg[0]);
 		return count;
 	}
-	if(reg[1] < 0 || reg[1] > 2){
-		printk("[AURA_MS51_INBOX] led_color_store: error input byte[1]=%d\n", reg[1]);
+	if (reg[1] < 0 || reg[1] > 2) {
+		printk("[AURA_MS51_INBOX] led_color_store: error input byte[1]=%d\n",
+		       reg[1]);
 		return count;
 	}
-	if(reg[2] < 0 || reg[2] > 255){
-		printk("[AURA_MS51_INBOX] led_color_store: error input byte[2]=%d\n", reg[2]);
+	if (reg[2] < 0 || reg[2] > 255) {
+		printk("[AURA_MS51_INBOX] led_color_store: error input byte[2]=%d\n",
+		       reg[2]);
 		return count;
 	}
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	printk("[AURA_MS51_INBOX] led_color_store,client->addr:0x%x,reg_value:0x%04x,reg[2]:0x%x.\n", client->addr,reg[0]*256+reg[1],reg[2]);
-	err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
-	if (err !=1)
+	printk("[AURA_MS51_INBOX] led_color_store,client->addr:0x%x,reg_value:0x%04x,reg[2]:0x%x.\n",
+	       client->addr, reg[0] * 256 + reg[1], reg[2]);
+	err = ms51_write_bytes(client, reg[0] * 256 + reg[1], reg[2]);
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t led_color_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t led_color_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
-
-	return snprintf(buf, PAGE_SIZE,"%s\n", "not define led_color_show");
+	return snprintf(buf, PAGE_SIZE, "%s\n", "not define led_color_show");
 }
 
-static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t mode2_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
-	unsigned char rgb[RGB_MAX] = {0};
+	unsigned char rgb[RGB_MAX] = { 0 };
 	//unsigned char tokenized_data[22] = {0};
 	unsigned char rainbow_mode = 0;
 	unsigned char mode2 = 0;
 	int err = 0;
-	int i = 0,rgb_num=0;//rgb_num_t=0;
+	int i = 0, rgb_num = 0; //rgb_num_t=0;
 	long rgb_tmp = 0;
-	unsigned char reg[3] = {0};
+	unsigned char reg[3] = { 0 };
 	int n = 0;
 	int ntokens = 0;
 	const char *cp = buf;
 	const char *buf_tmp;
-	mode2_state=0;
+	mode2_state = 0;
 
 	//printk("[AURA_MS51_INBOX] mode2_store.\n");
 	sscanf(buf, "%d", &mode2);
 
-	while ((cp = strpbrk(cp + 1, ",")))
-	{
-		ntokens++;  //the number of ","
+	while ((cp = strpbrk(cp + 1, ","))) {
+		ntokens++; //the number of ","
 		//printk("[AURA_MS51_INBOX] mode2_store %s.\n",cp);
 	}
-	printk("[AURA_MS51_INBOX] mode2_store mode2=%d buf=%s ntokens=%d\n",mode2,buf,ntokens);
-	if(ntokens > 6) 
-	{
+	printk("[AURA_MS51_INBOX] mode2_store mode2=%d buf=%s ntokens=%d\n",
+	       mode2, buf, ntokens);
+	if (ntokens > 6) {
 		printk("[AURA_MS51_INBOX] mode2_store,wrong input,too many ntokens\n");
-		mode2_state=-1;
+		mode2_state = -1;
 		return count;
 	}
 
-	cp=buf;
-	while((cp = strpbrk(cp, ",")))  //goto the ",".
+	cp = buf;
+	while ((cp = strpbrk(cp, ","))) //goto the ",".
 	{
 		cp++; // go after the ','
-		while(*cp != ',' && *cp != '\0' && *cp !='\n')
-		{
-			if(*cp==' '){
+		while (*cp != ',' && *cp != '\0' && *cp != '\n') {
+			if (*cp == ' ') {
 				cp++; //skip the ' '
-			}else{
+			} else {
 				buf_tmp = cp;
 				rgb_tmp = 0;
-				sscanf(buf_tmp, "%x",&rgb_tmp);
-				rgb[rgb_num++] = (rgb_tmp >> 16)&0xFF;
-				rgb[rgb_num++] = (rgb_tmp >> 8)&0xFF;
+				sscanf(buf_tmp, "%x", &rgb_tmp);
+				rgb[rgb_num++] = (rgb_tmp >> 16) & 0xFF;
+				rgb[rgb_num++] = (rgb_tmp >> 8) & 0xFF;
 				rgb[rgb_num++] = rgb_tmp & 0xFF;
 				break;
 			}
 		}
 	}
 
-	if(rgb_num != ntokens*3){
+	if (rgb_num != ntokens * 3) {
 		printk("[AURA_MS51_INBOX] mode2_store,wrong input,rgb_num != ntokens*3\n");
-		mode2_state=-1;
+		mode2_state = -1;
 		return count;
 	}
 
@@ -1018,283 +1056,304 @@ static ssize_t mode2_store(struct device *dev, struct device_attribute *attr, co
 		printk("[AURA_MS51_INBOX] mode2_store, rgb[%d]=0x%x \n",i,rgb[i]);
 	}*/
 
-	switch(mode2){
-		case 0: //closed
-			rainbow_mode = 0;
-			break;
-		case 1: //6 color rainbow
-			rainbow_mode = 0x7;
-			break;
-		case 2: //static
-			rainbow_mode = 1;
-			break;
-		case 3: //breath at the same time
-			rainbow_mode = 0x2;
-			break;
-		case 4: //breath at different time
-			rainbow_mode = 0x11;
-			break;
-		case 5: //breath only one led
-			rainbow_mode = 0x10;
-			break;
-		case 6: //commet
-			rainbow_mode = 0x12;
-			break;
-		case 8: //commet in different direction direction
-			rainbow_mode = 0x13;
-			break;
-		case 7: //flash and dash
-			rainbow_mode = 0x14;
-			break;
-		case 9: //flash and dash in different direction
-			rainbow_mode = 0x15;
-			break;
-		case 10: //6 color in different direction
-			rainbow_mode = 0x8;
-			break;
-		case 11: //6 color in different direction
-			rainbow_mode = 0xF;
-			break;
+	switch (mode2) {
+	case 0: //closed
+		rainbow_mode = 0;
+		break;
+	case 1: //6 color rainbow
+		rainbow_mode = 0x7;
+		break;
+	case 2: //static
+		rainbow_mode = 1;
+		break;
+	case 3: //breath at the same time
+		rainbow_mode = 0x2;
+		break;
+	case 4: //breath at different time
+		rainbow_mode = 0x11;
+		break;
+	case 5: //breath only one led
+		rainbow_mode = 0x10;
+		break;
+	case 6: //commet
+		rainbow_mode = 0x12;
+		break;
+	case 8: //commet in different direction direction
+		rainbow_mode = 0x13;
+		break;
+	case 7: //flash and dash
+		rainbow_mode = 0x14;
+		break;
+	case 9: //flash and dash in different direction
+		rainbow_mode = 0x15;
+		break;
+	case 10: //6 color in different direction
+		rainbow_mode = 0x8;
+		break;
+	case 11: //6 color in different direction
+		rainbow_mode = 0xF;
+		break;
 	}
 	platform_data->current_mode = (u8)mode2;
-	switch(rainbow_mode){
-		case 0:  //mode 0
-			mutex_lock(&g_pdata->ms51_mutex);
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-				mutex_unlock(&g_pdata->ms51_mutex);
-				mode2_state=-1;
-				return count;
-			}
+	switch (rainbow_mode) {
+	case 0: //mode 0
+		mutex_lock(&g_pdata->ms51_mutex);
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
 			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		case 0x1: //static
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				mode2_state=-1;
-				return count;
+			mode2_state = -1;
+			return count;
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	case 0x1: //static
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			mode2_state = -1;
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x,%x %x %x",
+		//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
+		//printk("[AURA_MS51_INBOX] mode2_store,static two leds. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+		for (i = 0; i < 6; i++) {
+			err = ms51_write_bytes(client, (0x8010 + i), rgb[i]);
+			if (err != 1) {
+				mode2_state = -1;
+				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+				       err);
 			}
-			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
-				//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
-			//printk("[AURA_MS51_INBOX] mode2_store,static two leds. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			for(i=0;i<6;i++){
-				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
-				if (err !=1){
-					mode2_state=-1;
-					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);	
-				}
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	case 0x2: //breath at the same time
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			mode2_state = -1;
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x,%x %x %x",
+		//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
+		//printk("[AURA_MS51_INBOX] mode2_store,static two leds. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+		for (i = 0; i < 6; i++) {
+			err = ms51_write_bytes(client, (0x8010 + i), rgb[i]);
+			if (err != 1) {
+				mode2_state = -1;
+				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+				       err);
 			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		case 0x2: //breath at the same time
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				mode2_state=-1;
-				return count;
-			}
-			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
-				//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
-			//printk("[AURA_MS51_INBOX] mode2_store,static two leds. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			for(i=0;i<6;i++){
-				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
-				if (err !=1){
-					mode2_state=-1;
-					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);	
-				}
-			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
 
-		case 0x7:
-		case 0x8://6 colors rainbow
-			if(ntokens != 6){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input, ntokens wrong.\n");
-				mode2_state=-1;
-				return count;
-			}
-			//printk("[AURA_MS51_INBOX] mode2_store,buf=%s\n",buf);
-			//sscanf(buf, "%x, %x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x", 
-				//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5],&rgb[6],&rgb[7],&rgb[8],&rgb[9],&rgb[10],&rgb[11],
-				//&rgb[12],&rgb[13],&rgb[14],&rgb[15],&rgb[16],&rgb[17],&rgb[18],&rgb[19],&rgb[20]);
+	case 0x7:
+	case 0x8: //6 colors rainbow
+		if (ntokens != 6) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input, ntokens wrong.\n");
+			mode2_state = -1;
+			return count;
+		}
+		//printk("[AURA_MS51_INBOX] mode2_store,buf=%s\n",buf);
+		//sscanf(buf, "%x, %x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x,%x %x %x",
+		//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5],&rgb[6],&rgb[7],&rgb[8],&rgb[9],&rgb[10],&rgb[11],
+		//&rgb[12],&rgb[13],&rgb[14],&rgb[15],&rgb[16],&rgb[17],&rgb[18],&rgb[19],&rgb[20]);
 
-
-			//printk("[AURA_MS51_INBOX] mode2_store,6 color rainbow. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			for(i = 0 ;i <= 5; i++){
-				reg[0] = 0xD0+i;
-				for(n = 0;n <= 2; n++){
-					reg[1] = n;
-					reg[2] = rgb[3*i+n];
-					//printk("[AURA_MS51_INBOX] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
-					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
-					if (err !=1){
-						mode2_state=-1;
-						printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-					}
-
+		//printk("[AURA_MS51_INBOX] mode2_store,6 color rainbow. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+		for (i = 0; i <= 5; i++) {
+			reg[0] = 0xD0 + i;
+			for (n = 0; n <= 2; n++) {
+				reg[1] = n;
+				reg[2] = rgb[3 * i + n];
+				//printk("[AURA_MS51_INBOX] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
+				err = ms51_write_bytes(
+					client, reg[0] * 256 + reg[1], reg[2]);
+				if (err != 1) {
+					mode2_state = -1;
+					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+					       err);
 				}
 			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	case 0x10: //breath one led
+	case 0xF: //breath one led
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			mode2_state = -1;
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x,%x %x %x",
+		//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
+		//printk("[AURA_MS51_INBOX] mode2_store,breath one led. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+		for (i = 0; i < 6; i++) {
+			err = ms51_write_bytes(client, (0x8010 + i), rgb[i]);
+			if (err != 1) {
+				mode2_state = -1;
+				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+				       err);
 			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		case 0x10: //breath one led
-		case 0xF: //breath one led
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				mode2_state=-1;
-				return count;
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	case 0x11: //breath at the different time
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			mode2_state = -1;
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x,%x %x %x",
+		//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
+		//printk("[AURA_MS51_INBOX] mode2_store,breath at the different time. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+		for (i = 0; i < 6; i++) {
+			err = ms51_write_bytes(client, (0x8010 + i), rgb[i]);
+			if (err != 1) {
+				mode2_state = -1;
+				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+				       err);
 			}
-			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
-				//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
-			//printk("[AURA_MS51_INBOX] mode2_store,breath one led. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			for(i=0;i<6;i++){
-				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
-				if (err !=1){
-					mode2_state=-1;
-					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);	
-				}
-			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		case 0x11: //breath at the different time
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				mode2_state=-1;
-				return count;
-			}
-			//sscanf(buf, "%x, %x %x %x,%x %x %x", 
-				//&rainbow_mode,&rgb[0],&rgb[1],&rgb[2],&rgb[3],&rgb[4],&rgb[5]);
-			//printk("[AURA_MS51_INBOX] mode2_store,breath at the different time. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			for(i=0;i<6;i++){
-				err = ms51_write_bytes(client, (0x8010+i),rgb[i]);
-				if (err !=1){
-					mode2_state=-1;
-					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);	
-				}
-			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
 
-		case 0x12://comet
-		case 0x14://flash and dash
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				return count;
-			}
-			//sscanf(buf, "%x, %x %x %x", &rainbow_mode,&rgb[0],&rgb[1],&rgb[2]);
-			//printk("[AURA_MS51_INBOX] mode2_store,comet or flash and dash. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
-			
-			for(i = 0 ;i <= 1; i++){
-				reg[0] = 0xDB+i;
-				for(n = 0;n <= 2; n++){
-					reg[1] = n;
-					reg[2] = rgb[3*i+n];
-					//printk("[AURA_MS51_INBOX] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
-					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
-					if (err !=1){
-						mode2_state=-1;
-						printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-					}
-				}
-			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		case 0x13://comet in different direction
-		case 0x15://flash and dash in different direction
-			if(ntokens != 2){
-				printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
-				return count;
-			}
-			//sscanf(buf, "%x, %x %x %x", &rainbow_mode,&rgb[0],&rgb[1],&rgb[2]);
-			//printk("[AURA_MS51_INBOX] mode2_store,comet or flash and dash. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
-			mutex_lock(&g_pdata->ms51_mutex);
+	case 0x12: //comet
+	case 0x14: //flash and dash
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x", &rainbow_mode,&rgb[0],&rgb[1],&rgb[2]);
+		//printk("[AURA_MS51_INBOX] mode2_store,comet or flash and dash. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
 
-			for(i = 1 ;i >= 0; i--){
-				reg[0] = 0xDB+(1-i);
-				for(n = 0;n <= 2; n++){
-					reg[1] = n;
-					reg[2] = rgb[3*i+n];
-					//printk("[AURA_MS51_INBOX] mode2_store 0x13 0x15,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
-					err = ms51_write_bytes(client, reg[0]*256+reg[1], reg[2]);
-					if (err !=1){
-						mode2_state=-1;
-						printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
-					}
+		for (i = 0; i <= 1; i++) {
+			reg[0] = 0xDB + i;
+			for (n = 0; n <= 2; n++) {
+				reg[1] = n;
+				reg[2] = rgb[3 * i + n];
+				//printk("[AURA_MS51_INBOX] mode2_store,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
+				err = ms51_write_bytes(
+					client, reg[0] * 256 + reg[1], reg[2]);
+				if (err != 1) {
+					mode2_state = -1;
+					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+					       err);
 				}
 			}
-			err = ms51_write_bytes(client, 0x8021, rainbow_mode);
-			if (err !=1){
-				mode2_state=-1;
-				printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	case 0x13: //comet in different direction
+	case 0x15: //flash and dash in different direction
+		if (ntokens != 2) {
+			printk("[AURA_MS51_INBOX] mode2_store,wrong input.\n");
+			return count;
+		}
+		//sscanf(buf, "%x, %x %x %x", &rainbow_mode,&rgb[0],&rgb[1],&rgb[2]);
+		//printk("[AURA_MS51_INBOX] mode2_store,comet or flash and dash. mode=0x%x,client->addr:0x%x.\n", rainbow_mode,client->addr);
+		mutex_lock(&g_pdata->ms51_mutex);
+
+		for (i = 1; i >= 0; i--) {
+			reg[0] = 0xDB + (1 - i);
+			for (n = 0; n <= 2; n++) {
+				reg[1] = n;
+				reg[2] = rgb[3 * i + n];
+				//printk("[AURA_MS51_INBOX] mode2_store 0x13 0x15,reg[0]=0x%02x reg[1]=0x%02x reg[2]=0x%02x.\n", reg[0],reg[1],reg[2]);
+				err = ms51_write_bytes(
+					client, reg[0] * 256 + reg[1], reg[2]);
+				if (err != 1) {
+					mode2_state = -1;
+					printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+					       err);
+				}
 			}
-			mutex_unlock(&g_pdata->ms51_mutex);
-			break;
-		default:
-			break;
+		}
+		err = ms51_write_bytes(client, 0x8021, rainbow_mode);
+		if (err != 1) {
+			mode2_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
+		}
+		mutex_unlock(&g_pdata->ms51_mutex);
+		break;
+	default:
+		break;
 	}
 	return count;
 }
 
-static ssize_t mode2_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t mode2_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-	return snprintf(buf, PAGE_SIZE,"%d\n", mode2_state);
+	return snprintf(buf, PAGE_SIZE, "%d\n", mode2_state);
 }
 
-static ssize_t apply_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t apply_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
 	int err = 0;
 	ssize_t ret;
-	apply_state=0;
+	apply_state = 0;
 	ret = kstrtou32(buf, 10, &val);
-	if (ret){
-		apply_state=-1;
+	if (ret) {
+		apply_state = -1;
 		return count;
 	}
 	mutex_lock(&g_pdata->ms51_mutex);
-	if (val > 0){
+	if (val > 0) {
 		//printk("[AURA_MS51_INBOX] Send apply cmd.\n");
-		printk("[AURA_MS51_INBOX] Send apply. RGB:%d %d %d, mode:%d, speed:%d, led_on:%d, led2_on:%d\n", g_red, g_green, g_blue, g_mode, g_speed, g_led_on, g_led2_on);
+		printk("[AURA_MS51_INBOX] Send apply. RGB:%d %d %d, mode:%d, speed:%d, led_on:%d, led2_on:%d\n",
+		       g_red, g_green, g_blue, g_mode, g_speed, g_led_on,
+		       g_led2_on);
 		err = ms51_write_bytes(client, 0x802F, 0x1);
-		if (err !=1){
-			apply_state=-1;
-			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
+		if (err != 1) {
+			apply_state = -1;
+			printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n",
+			       err);
 		}
 	} else
 		printk("[AURA_MS51_INBOX] No send apply cmd.\n");
@@ -1303,13 +1362,14 @@ static ssize_t apply_store(struct device *dev, struct device_attribute *attr, co
 	return count;
 }
 
-static ssize_t apply_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t apply_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
-
-	return snprintf(buf, PAGE_SIZE,"%d\n", apply_state);
+	return snprintf(buf, PAGE_SIZE, "%d\n", apply_state);
 }
 
-static ssize_t mode_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
+			  const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -1324,43 +1384,45 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr, con
 	//pr_debug("[AURA_MS51_INBOX] %s reg_val=%d.\n",__func__,val);
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
-	g_mode=val;
+	g_mode = val;
 	err = ms51_write_bytes(client, 0x8021, val);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return count;
 	}
 
 	platform_data->current_mode = (u8)val;
-//	ASUSEvtlog("[AURA_MS51_INBOX] current_mode : %d\n", platform_data->current_mode);
+	//	ASUSEvtlog("[AURA_MS51_INBOX] current_mode : %d\n", platform_data->current_mode);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t mode_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_bytes(client, 0x8021, data);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] mode_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+		return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 	}
 
 	platform_data->current_mode = data[0];
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t reset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t reset_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -1371,43 +1433,46 @@ static ssize_t reset_store(struct device *dev, struct device_attribute *attr, co
 	if (ret)
 		return count;
 
-	if(val>0) {
+	if (val > 0) {
 		printk("[AURA_MS51_INBOX] Reset pin set HIGH\n");
-		
-		if ( gpio_is_valid(platform_data->aura_3p3_en) ) {
+
+		if (gpio_is_valid(platform_data->aura_3p3_en)) {
 			gpio_set_value(platform_data->aura_3p3_en, 1);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] aura_3p3_en is not vaild\n");
 		}
-	}else {
+	} else {
 		printk("[AURA_MS51_INBOX] Reset pin set LOW\n");
 
-		if ( gpio_is_valid(platform_data->aura_3p3_en) ) {
+		if (gpio_is_valid(platform_data->aura_3p3_en)) {
 			gpio_set_value(platform_data->aura_3p3_en, 0);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] aura_3p3_en is not vaild\n");
 		}
 	}
 	return count;
 }
 
-static ssize_t reset_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t reset_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 	int val = 0;
 
-	if ( gpio_is_valid(platform_data->aura_3p3_en) ) {
+	if (gpio_is_valid(platform_data->aura_3p3_en)) {
 		val = gpio_get_value(platform_data->aura_3p3_en);
-		printk("[AURA_MS51_INBOX] reset pin, aura_3p3_en[%d] :0x%x\n", platform_data->aura_3p3_en, val);
-		return snprintf(buf, PAGE_SIZE,"%d\n", val);
-	}else {
+		printk("[AURA_MS51_INBOX] reset pin, aura_3p3_en[%d] :0x%x\n",
+		       platform_data->aura_3p3_en, val);
+		return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	} else {
 		printk("[AURA_MS51_INBOX] reset pin,aura_3p3_en is not valid\n");
-		return snprintf(buf, PAGE_SIZE,"reset pin is not valid\n");
+		return snprintf(buf, PAGE_SIZE, "reset pin is not valid\n");
 	}
 }
 
-static ssize_t set_frame(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_frame(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
@@ -1419,25 +1484,27 @@ static ssize_t set_frame(struct device *dev, struct device_attribute *attr, cons
 	if (ret)
 		return count;
 
-	if (val > 255){
+	if (val > 255) {
 		printk("[AURA_MS51_INBOX] Frame should not over 255.\n");
 		return count;
 	}
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	printk("[AURA_MS51_INBOX] set_frame client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
+	printk("[AURA_MS51_INBOX] set_frame client->addr : 0x%x,  val : 0x%x.\n",
+	       client->addr, val);
 	err = ms51_write_bytes(client, 0x80F2, val);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t get_frame(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t get_frame(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -1446,11 +1513,12 @@ static ssize_t get_frame(struct device *dev, struct device_attribute *attr,char 
 		printk("[AURA_MS51_INBOX] get_frame:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	pr_info("[AURA_MS51_INBOX] %s data[0]=%d.\n",__func__,data[0]);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	pr_info("[AURA_MS51_INBOX] %s data[0]=%d.\n", __func__, data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t set_speed(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_speed(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
@@ -1463,27 +1531,27 @@ static ssize_t set_speed(struct device *dev, struct device_attribute *attr, cons
 		return count;
 
 	//pr_debug("[AURA_MS51_INBOX] %s val=%d.\n",__func__,val);
-	if (val != 254 && val != 255 && val != 0 && val != 1 && val != 2){
+	if (val != 254 && val != 255 && val != 0 && val != 1 && val != 2) {
 		printk("[AURA_MS51_INBOX] speed should be 254,255,0,1,2 .\n");
 		return count;
 	}
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
-	g_speed=val;
+	g_speed = val;
 	err = ms51_write_bytes(client, 0x8022, val);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
-
 }
 
-static ssize_t get_speed(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t get_speed(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
@@ -1492,17 +1560,19 @@ static ssize_t get_speed(struct device *dev, struct device_attribute *attr,char 
 		printk("[AURA_MS51_INBOX] get_speed:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t set_cali_data(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_cali_data(struct device *dev, struct device_attribute *attr,
+			     const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 	int red_val = 0, green_val = 0, blue_val = 0;
 
 	sscanf(buf, "%d %d %d", &red_val, &green_val, &blue_val);
-	printk("[AURA_MS51_INBOX] set_cali_data, %d, %d, %d\n", red_val, green_val, blue_val);
+	printk("[AURA_MS51_INBOX] set_cali_data, %d, %d, %d\n", red_val,
+	       green_val, blue_val);
 
 	platform_data->RED_MAX = red_val;
 	platform_data->GREEN_MAX = green_val;
@@ -1511,16 +1581,21 @@ static ssize_t set_cali_data(struct device *dev, struct device_attribute *attr, 
 	return count;
 }
 
-static ssize_t get_cali_data(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t get_cali_data(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 
-	printk("[AURA_MS51_INBOX] R:%d, G:%d, B:%d\n", platform_data->RED_MAX, platform_data->GREEN_MAX, platform_data->BLUE_MAX);
-	return snprintf(buf, PAGE_SIZE,"R:%d, G:%d, B:%d\n", platform_data->RED_MAX, platform_data->GREEN_MAX, platform_data->BLUE_MAX);
+	printk("[AURA_MS51_INBOX] R:%d, G:%d, B:%d\n", platform_data->RED_MAX,
+	       platform_data->GREEN_MAX, platform_data->BLUE_MAX);
+	return snprintf(buf, PAGE_SIZE, "R:%d, G:%d, B:%d\n",
+			platform_data->RED_MAX, platform_data->GREEN_MAX,
+			platform_data->BLUE_MAX);
 }
 
-static ssize_t set_vph(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_vph(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -1531,120 +1606,125 @@ static ssize_t set_vph(struct device *dev, struct device_attribute *attr, const 
 	if (ret)
 		return count;
 	//return because we cann't get the gpio of pogo_sleep and pogo_det
-	return count;   
+	return count;
 
-	if(val>0) {
+	if (val > 0) {
 		printk("[AURA_MS51_INBOX] VPH set HIGH\n");
-		
-		if ( gpio_is_valid(platform_data->pogo_sleep) ) {
+
+		if (gpio_is_valid(platform_data->pogo_sleep)) {
 			gpio_set_value(platform_data->pogo_sleep, 1);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] pogo_sleep is not vaild\n");
 		}
 
-		if ( gpio_is_valid(platform_data->pogo_det) ) {
+		if (gpio_is_valid(platform_data->pogo_det)) {
 			gpio_set_value(platform_data->pogo_det, 1);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] pogo_det is not vaild\n");
 		}
 
-	}else {
+	} else {
 		printk("[AURA_MS51_INBOX] VPH set LOW\n");
 
-		if ( gpio_is_valid(platform_data->pogo_sleep) ) {
+		if (gpio_is_valid(platform_data->pogo_sleep)) {
 			gpio_set_value(platform_data->pogo_sleep, 0);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] pogo_sleep is not vaild\n");
 		}
 
-		if ( gpio_is_valid(platform_data->pogo_det) ) {
+		if (gpio_is_valid(platform_data->pogo_det)) {
 			gpio_set_value(platform_data->pogo_det, 0);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] pogo_det is not vaild\n");
 		}
 	}
 	return count;
 }
 
-static ssize_t get_vph(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t get_vph(struct device *dev, struct device_attribute *attr,
+		       char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 	int val1 = 0, val2 = 0;
 
 	//return because we cann't get the gpio of pogo_sleep and pogo_det
-	return 0;   
+	return 0;
 
-	if ( gpio_is_valid(platform_data->pogo_sleep) ) {
+	if (gpio_is_valid(platform_data->pogo_sleep)) {
 		val1 = gpio_get_value(platform_data->pogo_sleep);
-		printk("[AURA_MS51_INBOX] pogo_sleep[%d] :0x%x\n", platform_data->pogo_sleep, val1);
+		printk("[AURA_MS51_INBOX] pogo_sleep[%d] :0x%x\n",
+		       platform_data->pogo_sleep, val1);
 		//return snprintf(buf, PAGE_SIZE,"%d\n", val);
-	}else {
+	} else {
 		printk("[AURA_MS51_INBOX] pogo_sleep is not valid\n");
 		//return snprintf(buf, PAGE_SIZE,"aura_3p3_en is not valid\n");
 	}
 
-	if ( gpio_is_valid(platform_data->pogo_det) ) {
+	if (gpio_is_valid(platform_data->pogo_det)) {
 		val2 = gpio_get_value(platform_data->pogo_det);
-		printk("[AURA_MS51_INBOX] pogo_det[%d] :0x%x\n", platform_data->pogo_det, val2);
+		printk("[AURA_MS51_INBOX] pogo_det[%d] :0x%x\n",
+		       platform_data->pogo_det, val2);
 		//return snprintf(buf, PAGE_SIZE,"%d\n", val);
-	}else {
+	} else {
 		printk("[AURA_MS51_INBOX] pogo_det is not valid\n");
 		//return snprintf(buf, PAGE_SIZE,"aura_3p3_en is not valid\n");
 	}
 
-	return snprintf(buf, PAGE_SIZE,"pogo_sleep[%d]:%d, pogo_det[%d]:%d\n", platform_data->pogo_sleep, val1, platform_data->pogo_det, val2);
+	return snprintf(buf, PAGE_SIZE, "pogo_sleep[%d]:%d, pogo_det[%d]:%d\n",
+			platform_data->pogo_sleep, val1,
+			platform_data->pogo_det, val2);
 }
 
-static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 	unsigned char ver_major = 0;
 	unsigned char ver_minor = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_words(client, 0xCB01, data);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] fw_ver_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"i2c_error\n");
+		return snprintf(buf, PAGE_SIZE, "i2c_error\n");
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
 	ver_major = data[0];
 	ver_minor = data[1];
 
-	printk("[AURA_MS51_INBOX] FW version 0x%02x%02x\n", ver_major,ver_minor);
-	return snprintf(buf, PAGE_SIZE,"0x%02x%02x\n", ver_major,ver_minor);
+	printk("[AURA_MS51_INBOX] FW version 0x%02x%02x\n", ver_major,
+	       ver_minor);
+	return snprintf(buf, PAGE_SIZE, "0x%02x%02x\n", ver_major, ver_minor);
 }
 
-static int ms51_update_write(struct i2c_client *client, char * cmd_data_buf)
+static int ms51_update_write(struct i2c_client *client, char *cmd_data_buf)
 {
 	int err = 0;
 
 	//printk("[AURA_MS51_INBOX] ms51_update_write \n");
 	err = i2c_write_bytes(client, cmd_data_buf, 48);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] i2c_write_bytes:err %d\n", err);
 
 	return err;
-
 }
 static int ms51_fw_erase(struct i2c_client *client)
 {
 	int err = 0;
-	unsigned char buf[2] = {0};
+	unsigned char buf[2] = { 0 };
 	buf[0] = 0xA3;
 	buf[1] = 0x1;
 
 	printk("[AURA_MS51_INBOX] ms51_fw_erase \n");
 	err = i2c_write_bytes(client, buf, 2);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] i2c_write_bytes:err %d\n", err);
 	printk("[AURA_MS51_INBOX] after erase\n");
 	return err;
-
 }
 static int ms51_GetFirmwareSize(char *firmware_name)
 {
@@ -1702,17 +1782,18 @@ static int ms51_ReadFirmware(char *fw_name, unsigned char *fw_buf)
 	return 0;
 }
 
-static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsize)
+static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,
+			       int fwsize)
 {
 	int err = 0;
 	//struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 	unsigned char *buf;
 	short addr;
-	int retry=0;
-	unsigned char data[4]={0};
+	int retry = 0;
+	unsigned char data[4] = { 0 };
 	struct i2c_msg msg;
 
-	buf = kmalloc(sizeof(unsigned char)*49, GFP_DMA);
+	buf = kmalloc(sizeof(unsigned char) * 49, GFP_DMA);
 	if (!buf) {
 		printk("unable to allocate key input memory\n");
 		return -ENOMEM;
@@ -1722,107 +1803,113 @@ static int ms51_UpdateFirmware(struct i2c_client *client, char *fw_buf,int fwsiz
 	//erase--remove this because we will send all 13kb data (add 0 to the end)
 	//err = ms51_fw_erase(client);
 	//if (err !=1)
-		//printk("[AURA_MS51_INBOX] ms51_fw_erase :err %d\n", err);
+	//printk("[AURA_MS51_INBOX] ms51_fw_erase :err %d\n", err);
 	//msleep(500);
 	//printk("[AURA_MS51_INBOX] after erase :\n");
-
 
 	//flash
 
 	//first write
-	memset(buf,0,sizeof(unsigned char)*48);
+	memset(buf, 0, sizeof(unsigned char) * 48);
 	buf[0] = 0xA0;
 	buf[13] = 0x34;
-	memcpy(&(buf[16]),fw_buf+0,32);
+	memcpy(&(buf[16]), fw_buf + 0, 32);
 
-	printk("[AURA_MS51_INBOX] ms51_UpdateFirmware,client->addr : 0x%x\n", client->addr);
+	printk("[AURA_MS51_INBOX] ms51_UpdateFirmware,client->addr : 0x%x\n",
+	       client->addr);
 
-	while(1){
+	while (1) {
 		printk("[AURA_MS51_INBOX] ms51_update_write : num=0\n");
-		err = ms51_update_write(client,buf);
-		if (err !=1)
-			printk("[AURA_MS51_INBOX] ms51_update_write :err %d\n", err);
+		err = ms51_update_write(client, buf);
+		if (err != 1)
+			printk("[AURA_MS51_INBOX] ms51_update_write :err %d\n",
+			       err);
 		msleep(1000);
 
-		msg.flags = I2C_M_RD;		//read
+		msg.flags = I2C_M_RD; //read
 		msg.addr = client->addr;
 		msg.len = 4;
 		msg.buf = data;
 
-		err = i2c_transfer(client->adapter,&msg, 1);
+		err = i2c_transfer(client->adapter, &msg, 1);
 
-		if((data[2]==0x1F) && (data[3]==0)){
-			retry=0;
+		if ((data[2] == 0x1F) && (data[3] == 0)) {
+			retry = 0;
 			//printk("[AURA_MS51_INBOX] write ok!\n");
 			break;
-		}else{
+		} else {
 			retry++;
 			if (retry > 10) {
-				printk("[AURA_MS51_INBOX] ms51_UpdateFirmware retry too many times: %d, Force exit!!!\n", retry);
+				printk("[AURA_MS51_INBOX] ms51_UpdateFirmware retry too many times: %d, Force exit!!!\n",
+				       retry);
 				kfree(buf);
 				return -1;
 			}
 		}
 	}
 	//the follwing write
-	for(addr = 32; addr < 13*1024; addr = addr+32){
-
-		memset(buf,0,sizeof(unsigned char)*48);
+	for (addr = 32; addr < 13 * 1024; addr = addr + 32) {
+		memset(buf, 0, sizeof(unsigned char) * 48);
 		buf[0] = 0xA0;
-		if(addr <= fwsize-32){
-			memcpy(&(buf[16]),fw_buf+addr,32);
-		}else{
-			if(addr >= fwsize){
-				memset(&(buf[16]),0,sizeof(unsigned char)*32);
-			}else{
-				memcpy(&(buf[16]),fw_buf+addr,fwsize-addr);
+		if (addr <= fwsize - 32) {
+			memcpy(&(buf[16]), fw_buf + addr, 32);
+		} else {
+			if (addr >= fwsize) {
+				memset(&(buf[16]), 0,
+				       sizeof(unsigned char) * 32);
+			} else {
+				memcpy(&(buf[16]), fw_buf + addr,
+				       fwsize - addr);
 				//memset(&(buf[16+fwsize-addr]),0,sizeof(unsigned char)*(32-fwsize+addr));
 			}
 		}
 
-		while(1){
+		while (1) {
 			//printk("[AURA_MS51_INBOX] ms51_update_write : num=%d\n", addr/32);
-			err = ms51_update_write(client,buf);
+			err = ms51_update_write(client, buf);
 			msleep(10);
-			if (err !=1)
-				printk("[AURA_MS51_INBOX] ms51_update_write :err %d\n", err);
+			if (err != 1)
+				printk("[AURA_MS51_INBOX] ms51_update_write :err %d\n",
+				       err);
 
-			if(addr/32 == 415) //the last write
+			if (addr / 32 == 415) //the last write
 			{
 				printk("[AURA_MS51_INBOX] the last write, no return value. assume it writes ok!\n");
 				break;
 			}
 
-			data[2]=0;
-			data[3]=0;
-			msg.flags = I2C_M_RD;		//read
+			data[2] = 0;
+			data[3] = 0;
+			msg.flags = I2C_M_RD; //read
 			msg.addr = client->addr;
 			msg.len = 4;
 			msg.buf = data;
 
-			err = i2c_transfer(client->adapter,&msg, 1);
+			err = i2c_transfer(client->adapter, &msg, 1);
 
-			if((data[2]==((addr+31)&0xFF)) && (data[3]==(((addr+31)>>8)&0xFF))){
-				retry=0;
+			if ((data[2] == ((addr + 31) & 0xFF)) &&
+			    (data[3] == (((addr + 31) >> 8) & 0xFF))) {
+				retry = 0;
 				//printk("[AURA_MS51_INBOX] write ok!\n");
 				break;
-			}else{
+			} else {
 				retry++;
 				if (retry > 10) {
-					printk("[AURA_MS51_INBOX] ms51_UpdateFirmware retry too many times: %d, Force exit!!!\n", retry);
+					printk("[AURA_MS51_INBOX] ms51_UpdateFirmware retry too many times: %d, Force exit!!!\n",
+					       retry);
 					kfree(buf);
 					return -1;
 				}
 			}
-		}//end while
-	}//end for
+		} //end while
+	} //end for
 	printk("[AURA_MS51_INBOX] ms51_UpdateFirmware finished.\n");
 	kfree(buf);
 	return 0;
 }
 static ssize_t fw_update_store(struct device *dev,
-					  struct device_attribute *mattr,
-					  const char *buf, size_t count)
+			       struct device_attribute *mattr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	int err = 0;
@@ -1830,26 +1917,25 @@ static ssize_t fw_update_store(struct device *dev,
 	unsigned char *fw_buf;
 	//struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 
-
 	char fw_name[128];
 
-	printk("[AURA_MS51_INBOX] fw_update_store. slave = 0x%x\n", client->addr);
+	printk("[AURA_MS51_INBOX] fw_update_store. slave = 0x%x\n",
+	       client->addr);
 
 	memset(fw_name, 0, sizeof(fw_name));
 	sprintf(fw_name, "%s", buf);
-	fw_name[count-1] = '\0';
+	fw_name[count - 1] = '\0';
 
 	// get fs_size
 	fw_size = ms51_GetFirmwareSize(fw_name);
-	if(fw_size<=0)
-	{
+	if (fw_size <= 0) {
 		printk("[AURA_MS51_INBOX] fwsize %d\n", fw_size);
 		return count;
 	}
 	printk("[AURA_MS51_INBOX] fwsize %d\n", fw_size);
 
 	// set fw_buf
-	fw_buf = kmalloc(fw_size+1 ,GFP_ATOMIC);
+	fw_buf = kmalloc(fw_size + 1, GFP_ATOMIC);
 	//printk("[AURA_MS51_INBOX] after kmalloc\n");
 
 	// read FW content
@@ -1861,8 +1947,8 @@ static ssize_t fw_update_store(struct device *dev,
 	//printk("[AURA_MS51_INBOX] after read \n");
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	err = ms51_UpdateFirmware(client,fw_buf,fw_size);
-	if(err)
+	err = ms51_UpdateFirmware(client, fw_buf, fw_size);
+	if (err)
 		printk("[AURA_MS51_INBOX] ms51_UpdateFirmware, err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
@@ -1899,25 +1985,26 @@ static ssize_t write_reg_store(struct device *dev,
 	return count;
 }*/
 
-static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	//struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	//int err = 0;
 	unsigned char *buf_cmd;
 	struct i2c_msg msgs[2];
-	int ret=-1;
+	int ret = -1;
 	//unsigned char tmp[129] = {0};
 	//int  i = 0;
-	buf_cmd = kmalloc(sizeof(unsigned char)*49, GFP_DMA);
+	buf_cmd = kmalloc(sizeof(unsigned char) * 49, GFP_DMA);
 	if (!buf_cmd) {
 		printk("unable to allocate key input memory\n");
 		return -ENOMEM;
 	}
 
 	//printk("[AURA_MS51_INBOX] fw_mode_show, after kmalloc\n");
-	memset(buf_cmd,0,sizeof(unsigned char)*48);
+	memset(buf_cmd, 0, sizeof(unsigned char) * 48);
 	buf_cmd[0] = 0xCA;
 	/*for(i=0;i<48;i++){
 		printk("[AURA_MS51_INBOX] buf[%d]= %x",i,buf[i]);
@@ -1925,22 +2012,21 @@ static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,ch
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	//send register address
-	msgs[0].flags = !I2C_M_RD;	//write
+	msgs[0].flags = !I2C_M_RD; //write
 	msgs[0].addr = client->addr;
 	msgs[0].len = 48;
 	msgs[0].buf = buf_cmd;
-	ret = i2c_transfer(client->adapter,&msgs[0], 1);
+	ret = i2c_transfer(client->adapter, &msgs[0], 1);
 
 	msleep(1);
 	//read data
-	msgs[1].flags = I2C_M_RD;		//read
+	msgs[1].flags = I2C_M_RD; //read
 	msgs[1].addr = client->addr;
 	msgs[1].len = 1;
 	msgs[1].buf = data;
 
-	ret = i2c_transfer(client->adapter,&msgs[1], 1);
+	ret = i2c_transfer(client->adapter, &msgs[1], 1);
 	mutex_unlock(&g_pdata->ms51_mutex);
-
 
 	/*mutex_lock(&g_pdata->ms51_mutex);
 	i2c_read_bytes(client, buf_cmd, 48, data, 1);
@@ -1948,10 +2034,11 @@ static ssize_t fw_mode_show(struct device *dev, struct device_attribute *attr,ch
 	kfree(buf_cmd);
 
 	printk("[AURA_MS51_INBOX] FW mode is %d\n", data[0]);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t ld2ap_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t ld2ap_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
@@ -1966,15 +2053,15 @@ static ssize_t ld2ap_store(struct device *dev, struct device_attribute *attr, co
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
 	err = ms51_write_bytes(client, 0xAB00, val);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
-
 }
 
-static ssize_t ap2ld_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t ap2ld_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
@@ -1989,14 +2076,15 @@ static ssize_t ap2ld_store(struct device *dev, struct device_attribute *attr, co
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
 	err = ms51_write_bytes(client, 0xCB02, val);
-	if (err !=1)
+	if (err != 1)
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
 }
 
-static ssize_t erase_ap_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t erase_ap_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	u32 val;
@@ -2009,15 +2097,16 @@ static ssize_t erase_ap_store(struct device *dev, struct device_attribute *attr,
 		return count;
 
 	mutex_lock(&g_pdata->ms51_mutex);
-	if(val==1){
+	if (val == 1) {
 		ms51_fw_erase(client);
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
 	return count;
-
 }
 
-static ssize_t frontled_en_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t frontled_en_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 
@@ -2032,9 +2121,9 @@ static ssize_t frontled_en_store(struct device *dev, struct device_attribute *at
 	//pr_debug("[AURA_MS51_INBOX] %s val=%d \n",__func__,val);
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
-	g_led2_on=val;
+	g_led2_on = val;
 	err = ms51_write_bytes(client, 0x6005, val);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return count;
@@ -2043,26 +2132,29 @@ static ssize_t frontled_en_store(struct device *dev, struct device_attribute *at
 	return count;
 }
 
-static ssize_t frontled_en_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t frontled_en_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_bytes(client, 0x6005, data);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] frontled_en_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+		return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_MS51_INBOX] led2_on %d\n", data[0]);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t backled_en_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t backled_en_store(struct device *dev,
+				struct device_attribute *attr, const char *buf,
+				size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 
@@ -2077,9 +2169,9 @@ static ssize_t backled_en_store(struct device *dev, struct device_attribute *att
 	//pr_debug("[AURA_MS51_INBOX] %s val=%d \n",__func__,val);
 	mutex_lock(&g_pdata->ms51_mutex);
 	//printk("[AURA_MS51_INBOX] client->addr : 0x%x,  val : 0x%x.\n", client->addr, val);
-	g_led_on=val;
+	g_led_on = val;
 	err = ms51_write_bytes(client, 0x6006, val);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
 		return count;
@@ -2088,31 +2180,33 @@ static ssize_t backled_en_store(struct device *dev, struct device_attribute *att
 	return count;
 }
 
-static ssize_t backled_en_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t backled_en_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = ms51_read_bytes(client, 0x6006, data);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] backled_en_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+		return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 	}
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_MS51_INBOX] led_on %d\n", data[0]);
-	return snprintf(buf, PAGE_SIZE,"%d\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data[0]);
 }
 
-static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[12] = {0};
+	unsigned char data[12] = { 0 };
 	int err = 0;
-	unsigned char cmd[2] = {0};
+	unsigned char cmd[2] = { 0 };
 	struct i2c_msg msgs;
 
 	cmd[0] = 0xCB;
@@ -2120,27 +2214,31 @@ static ssize_t unique_id_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	err = i2c_write_bytes(client, cmd, 2);
-	if (err !=1)
-		printk("[AURA_MS51_INBOX] i2c_write_bytes 0xCB03 :err %d\n", err);
+	if (err != 1)
+		printk("[AURA_MS51_INBOX] i2c_write_bytes 0xCB03 :err %d\n",
+		       err);
 
 	msleep(2);
 
 	//read data
-	msgs.flags = I2C_M_RD;		//read
+	msgs.flags = I2C_M_RD; //read
 	msgs.addr = client->addr;
 	msgs.len = 12;
 	msgs.buf = data;
-	err = i2c_transfer(client->adapter,&msgs, 1);
+	err = i2c_transfer(client->adapter, &msgs, 1);
 	mutex_unlock(&g_pdata->ms51_mutex);
 
 	printk("[AURA_MS51_INBOX] MS51 UID = 0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],data[9],data[10],data[11]);
-	return snprintf(buf, PAGE_SIZE,"0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],data[8],data[9],data[10],data[11]);
+	       data[0], data[1], data[2], data[3], data[4], data[5], data[6],
+	       data[7], data[8], data[9], data[10], data[11]);
+	return snprintf(buf, PAGE_SIZE,
+			"0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			data[0], data[1], data[2], data[3], data[4], data[5],
+			data[6], data[7], data[8], data[9], data[10], data[11]);
 }
 
-
-static ssize_t ms51_vdd_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t ms51_vdd_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
@@ -2151,96 +2249,106 @@ static ssize_t ms51_vdd_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return count;
 
-	if(val>0) {
-		printk("[AURA_MS51_INBOX] VDD GPIO[%d] set HIGH\n", platform_data->ms51_enable_pin);
-		if ( gpio_is_valid(platform_data->ms51_enable_pin) ) {
+	if (val > 0) {
+		printk("[AURA_MS51_INBOX] VDD GPIO[%d] set HIGH\n",
+		       platform_data->ms51_enable_pin);
+		if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 			gpio_set_value(platform_data->ms51_enable_pin, 1);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] ms51_enable_pin is not vaild\n");
 		}
 		msleep(350); //sleep 350ms for waiting ic power on.
-	}else {
-		printk("[AURA_MS51_INBOX] VDD GPIO[%d] set LOW\n", platform_data->ms51_enable_pin);
-		if ( gpio_is_valid(platform_data->ms51_enable_pin) ) {
+	} else {
+		printk("[AURA_MS51_INBOX] VDD GPIO[%d] set LOW\n",
+		       platform_data->ms51_enable_pin);
+		if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 			gpio_set_value(platform_data->ms51_enable_pin, 0);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] ms51_enable_pin is not vaild\n");
 		}
 	}
 	return count;
 }
 
-static ssize_t ms51_vdd_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t ms51_vdd_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	struct ms51_platform_data *platform_data = i2c_get_clientdata(client);
 	int val = 0;
 
-	if ( gpio_is_valid(platform_data->ms51_enable_pin) ) {
+	if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 		val = gpio_get_value(platform_data->ms51_enable_pin);
-		printk("[AURA_MS51_INBOX] VDD GPIO[%d] :0x%x\n", platform_data->ms51_enable_pin, val);
-		return snprintf(buf, PAGE_SIZE,"%d\n", val);
-	}else {
+		printk("[AURA_MS51_INBOX] VDD GPIO[%d] :0x%x\n",
+		       platform_data->ms51_enable_pin, val);
+		return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	} else {
 		printk("[AURA_MS51_INBOX] ms51_enable_pin is not valid\n");
-		return snprintf(buf, PAGE_SIZE,"ms51_enable_pin is not valid\n");
+		return snprintf(buf, PAGE_SIZE,
+				"ms51_enable_pin is not valid\n");
 	}
 }
 
-static ssize_t HWID_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t HWID_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
 	int err = 0;
-	unsigned char p15[2] = {0};
-	unsigned char p17[2] = {0};
+	unsigned char p15[2] = { 0 };
+	unsigned char p17[2] = { 0 };
 
 	mutex_lock(&g_pdata->ms51_mutex);
 	// Set MS51 P15/P17 output HIGH
 	err = ms51_write_bytes(client, 0x6015, 0x1);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P15 set H error!!!\n");
+		return snprintf(buf, PAGE_SIZE, "HWID P15 set H error!!!\n");
 	}
 	err = ms51_write_bytes(client, 0x6017, 0x1);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P17 set H error!!!\n");
+		return snprintf(buf, PAGE_SIZE, "HWID P17 set H error!!!\n");
 	}
 
 	// Read P15/P17 status
 	err = ms51_read_bytes(client, 0x6015, p15);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] backled_en_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P15 read status error!!!\n");
+		return snprintf(buf, PAGE_SIZE,
+				"HWID P15 read status error!!!\n");
 	}
 	err = ms51_read_bytes(client, 0x6017, p17);
-	if (err != 1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] backled_en_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P17 read status error!!!\n");
+		return snprintf(buf, PAGE_SIZE,
+				"HWID P17 read status error!!!\n");
 	}
 
 	// Set MS51 P15/P17 output LOW
 	err = ms51_write_bytes(client, 0x6015, 0x0);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P15 set L error!!!\n");
+		return snprintf(buf, PAGE_SIZE, "HWID P15 set L error!!!\n");
 	}
 	err = ms51_write_bytes(client, 0x6017, 0x0);
-	if (err !=1){
+	if (err != 1) {
 		printk("[AURA_MS51_INBOX] ms51_write_bytes:err %d\n", err);
 		mutex_unlock(&g_pdata->ms51_mutex);
-		return snprintf(buf, PAGE_SIZE,"HWID P17 set L error!!!\n");
+		return snprintf(buf, PAGE_SIZE, "HWID P17 set L error!!!\n");
 	}
 
 	mutex_unlock(&g_pdata->ms51_mutex);
-	return snprintf(buf, PAGE_SIZE,"%d%d\n", p15[0], p17[0]);
+	return snprintf(buf, PAGE_SIZE, "%d%d\n", p15[0], p17[0]);
 }
 
-static ssize_t set_dongle_switch_mode(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t set_dongle_switch_mode(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
 {
 	u32 val;
 	ssize_t ret;
@@ -2249,23 +2357,23 @@ static ssize_t set_dongle_switch_mode(struct device *dev, struct device_attribut
 	if (ret)
 		return count;
 
-	if(val>0){
+	if (val > 0) {
 		printk("[AURA_MS51_INBOX] set dongle switch mode 1\n");
 		dongle_switch_mode = 1;
-	}else{
+	} else {
 		printk("[AURA_MS51_INBOX] set dongle switch mode 0\n");
 		dongle_switch_mode = 0;
 	}
 	return count;
 }
 
-static ssize_t get_dongle_switch_mode(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t get_dongle_switch_mode(struct device *dev,
+				      struct device_attribute *attr, char *buf)
 {
-	if(dongle_switch_mode>0)
-		return snprintf(buf, PAGE_SIZE,"%d\n", 1);
+	if (dongle_switch_mode > 0)
+		return snprintf(buf, PAGE_SIZE, "%d\n", 1);
 	else
-		return snprintf(buf, PAGE_SIZE,"%d\n", 0);
-
+		return snprintf(buf, PAGE_SIZE, "%d\n", 0);
 }
 static DEVICE_ATTR(red_pwm, 0664, red_pwm_show, red_pwm_store);
 static DEVICE_ATTR(green_pwm, 0664, green_pwm_show, green_pwm_store);
@@ -2282,56 +2390,55 @@ static DEVICE_ATTR(Calibration, 0664, get_cali_data, set_cali_data);
 static DEVICE_ATTR(VPH, 0664, get_vph, set_vph);
 static DEVICE_ATTR(fw_ver, 0664, fw_ver_show, NULL);
 static DEVICE_ATTR(fw_update, 0664, NULL, fw_update_store);
-static DEVICE_ATTR(fw_mode, 0664, fw_mode_show,NULL);
-static DEVICE_ATTR(ap2ld, 0664, NULL,ap2ld_store);
-static DEVICE_ATTR(ld2ap, 0664, NULL,ld2ap_store);
-static DEVICE_ATTR(erase_ap, 0664, NULL,erase_ap_store);
+static DEVICE_ATTR(fw_mode, 0664, fw_mode_show, NULL);
+static DEVICE_ATTR(ap2ld, 0664, NULL, ap2ld_store);
+static DEVICE_ATTR(ld2ap, 0664, NULL, ld2ap_store);
+static DEVICE_ATTR(erase_ap, 0664, NULL, erase_ap_store);
 static DEVICE_ATTR(led2_on, 0664, frontled_en_show, frontled_en_store);
 static DEVICE_ATTR(led_on, 0664, backled_en_show, backled_en_store);
 static DEVICE_ATTR(unique_id, 0664, unique_id_show, NULL);
 static DEVICE_ATTR(VDD, 0664, ms51_vdd_show, ms51_vdd_store);
-static DEVICE_ATTR(led_color, 0664, led_color_show,led_color_store);
-static DEVICE_ATTR(mode2, 0664, mode2_show,mode2_store);
-static DEVICE_ATTR(HWID, 0664, HWID_show,NULL);
-static DEVICE_ATTR(dongle_switch_mode, 0664, get_dongle_switch_mode, set_dongle_switch_mode);
+static DEVICE_ATTR(led_color, 0664, led_color_show, led_color_store);
+static DEVICE_ATTR(mode2, 0664, mode2_show, mode2_store);
+static DEVICE_ATTR(HWID, 0664, HWID_show, NULL);
+static DEVICE_ATTR(dongle_switch_mode, 0664, get_dongle_switch_mode,
+		   set_dongle_switch_mode);
 
-static struct attribute *pwm_attrs[] = {
-	&dev_attr_red_pwm.attr,
-	&dev_attr_green_pwm.attr,
-	&dev_attr_blue_pwm.attr,
-	&dev_attr_red1_pwm.attr,
-	&dev_attr_green1_pwm.attr,
-	&dev_attr_blue1_pwm.attr,
-	&dev_attr_apply.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_reset.attr,
-	&dev_attr_frame.attr,
-	&dev_attr_speed.attr,
-	&dev_attr_Calibration.attr,
-	&dev_attr_VPH.attr,
-	&dev_attr_fw_ver.attr,
-	&dev_attr_fw_update.attr,
-	&dev_attr_fw_mode.attr,
-	&dev_attr_ap2ld.attr,
-	&dev_attr_ld2ap.attr,
-	&dev_attr_erase_ap.attr,
-	&dev_attr_led2_on.attr,
-	&dev_attr_led_on.attr,
-	&dev_attr_unique_id.attr,
-	&dev_attr_VDD.attr,
-	&dev_attr_led_color.attr,
-	&dev_attr_mode2.attr,
-	&dev_attr_HWID.attr,
-	&dev_attr_dongle_switch_mode.attr,
-	NULL
-};
+static struct attribute *pwm_attrs[] = { &dev_attr_red_pwm.attr,
+					 &dev_attr_green_pwm.attr,
+					 &dev_attr_blue_pwm.attr,
+					 &dev_attr_red1_pwm.attr,
+					 &dev_attr_green1_pwm.attr,
+					 &dev_attr_blue1_pwm.attr,
+					 &dev_attr_apply.attr,
+					 &dev_attr_mode.attr,
+					 &dev_attr_reset.attr,
+					 &dev_attr_frame.attr,
+					 &dev_attr_speed.attr,
+					 &dev_attr_Calibration.attr,
+					 &dev_attr_VPH.attr,
+					 &dev_attr_fw_ver.attr,
+					 &dev_attr_fw_update.attr,
+					 &dev_attr_fw_mode.attr,
+					 &dev_attr_ap2ld.attr,
+					 &dev_attr_ld2ap.attr,
+					 &dev_attr_erase_ap.attr,
+					 &dev_attr_led2_on.attr,
+					 &dev_attr_led_on.attr,
+					 &dev_attr_unique_id.attr,
+					 &dev_attr_VDD.attr,
+					 &dev_attr_led_color.attr,
+					 &dev_attr_mode2.attr,
+					 &dev_attr_HWID.attr,
+					 &dev_attr_dongle_switch_mode.attr,
+					 NULL };
 
 static const struct attribute_group pwm_attr_group = {
 	.attrs = pwm_attrs,
 };
 
 static void aura_sync_set(struct led_classdev *led,
-			      enum led_brightness brightness)
+			  enum led_brightness brightness)
 {
 	printk("[AURA_MS51_INBOX] aura_sync_set : %d.\n", brightness);
 }
@@ -2346,7 +2453,8 @@ static enum led_brightness aura_sync_get(struct led_classdev *led_cdev)
 	return pdata->led.brightness;
 }
 
-static int aura_sync_register(struct device *dev, struct ms51_platform_data *pdata)
+static int aura_sync_register(struct device *dev,
+			      struct ms51_platform_data *pdata)
 {
 	pdata->led.name = "aura_inbox";
 
@@ -2367,15 +2475,19 @@ static void aura_sync_unregister(struct ms51_platform_data *pdata)
 static int ms51_parse_dt(struct device *dev, struct ms51_platform_data *pdata)
 {
 	struct device_node *np = dev->of_node;
-//	int retval;
+	//	int retval;
 
 	printk("[AURA_MS51_INBOX] ms51_parse_dt\n");
 
-	pdata->remove_aura_3p3_en = of_property_read_bool(np, "nuvoton,remove_aura_3p3_en");
-	printk("[AURA_MS51_INBOX] remove_aura_3p3_en : %d\n", pdata->remove_aura_3p3_en);
+	pdata->remove_aura_3p3_en =
+		of_property_read_bool(np, "nuvoton,remove_aura_3p3_en");
+	printk("[AURA_MS51_INBOX] remove_aura_3p3_en : %d\n",
+	       pdata->remove_aura_3p3_en);
 
-	if(!pdata->remove_aura_3p3_en)
-		pdata->aura_3p3_en = of_get_named_gpio_flags(np, "nuvoton,aura_3p3_en", 0, &pdata->aura_3p3_en_flags);
+	if (!pdata->remove_aura_3p3_en)
+		pdata->aura_3p3_en =
+			of_get_named_gpio_flags(np, "nuvoton,aura_3p3_en", 0,
+						&pdata->aura_3p3_en_flags);
 	else
 		pdata->aura_3p3_en = -1;
 
@@ -2392,10 +2504,12 @@ static int ms51_parse_dt(struct device *dev, struct ms51_platform_data *pdata)
 	printk("[AURA_MS51_INBOX] pogo_det : %d\n", pdata->pogo_det);
 	*/
 
-	pdata->ms51_enable_pin = of_get_named_gpio_flags(np, "nuvoton,ms51_on", 0, NULL);
-	printk("[AURA_MS51_INBOX] pdata->ms51_enable_pin=%d\n",pdata->ms51_enable_pin);
+	pdata->ms51_enable_pin =
+		of_get_named_gpio_flags(np, "nuvoton,ms51_on", 0, NULL);
+	printk("[AURA_MS51_INBOX] pdata->ms51_enable_pin=%d\n",
+	       pdata->ms51_enable_pin);
 
-/*
+	/*
 	printk("[AURA_MS51_INBOX] Get the pinctrl node \n");
 	// Get the pinctrl node
 	pdata->pinctrl = devm_pinctrl_get(dev);
@@ -2424,28 +2538,30 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int err = 0;
 	struct ms51_platform_data *platform_data;
-	int count=1;
-	unsigned char data[4] = {0};
+	int count = 1;
+	unsigned char data[4] = { 0 };
 	unsigned char *buf_cmd;
 	struct i2c_msg msgs[2];
 #if FAN_ADD
 	int i = 0;
-#endif 
-	if(g_Charger_mode) {
+#endif
+	if (g_Charger_mode) {
 		printk("[AURA_MS51_INBOX] In charger mode, stop ms51_probe\n");
 		return 0;
 	}
-	
-	buf_cmd = kmalloc(sizeof(unsigned char)*49, GFP_DMA);
+
+	buf_cmd = kmalloc(sizeof(unsigned char) * 49, GFP_DMA);
 	if (!buf_cmd) {
 		printk("unable to allocate buf_cmd memory\n");
 		kfree(buf_cmd);
 		return -ENOMEM;
 	}
 
-	printk("[AURA_MS51_INBOX] ms51_probe,client->addr : 0x%x\n", client->addr);
+	printk("[AURA_MS51_INBOX] ms51_probe,client->addr : 0x%x\n",
+	       client->addr);
 
-	platform_data = devm_kzalloc(&client->dev, sizeof(struct ms51_platform_data), GFP_KERNEL);
+	platform_data = devm_kzalloc(
+		&client->dev, sizeof(struct ms51_platform_data), GFP_KERNEL);
 	if (!platform_data) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
 		kfree(buf_cmd);
@@ -2455,32 +2571,36 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, platform_data);
 	mutex_init(&platform_data->ms51_mutex);
 
-// Parse platform data from dtsi
+	// Parse platform data from dtsi
 	err = ms51_parse_dt(&client->dev, platform_data);
 	if (err) {
 		printk("[AURA_MS51_INBOX] ms51_parse_dt get fail !!!\n");
 		goto parse_remove;
 	}
 
-// Set ms51 power
-	if ( gpio_is_valid(platform_data->ms51_enable_pin) ){
+	// Set ms51 power
+	if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 		err = gpio_request(platform_data->ms51_enable_pin, "ms51_on");
-		if (err){
-			printk("[AURA_MS51_INBOX] ms51_enable_pin gpio_request, err %d\n", err);
+		if (err) {
+			printk("[AURA_MS51_INBOX] ms51_enable_pin gpio_request, err %d\n",
+			       err);
 			goto parse_remove;
 		}
 
 		printk("[AURA_MS51_INBOX] MS51 INBOX aura power on.\n");
 		err = gpio_direction_output(platform_data->ms51_enable_pin, 1);
-		if (err){
-			printk("[AURA_MS51_INBOX] ms51_enable_pin output high.err %d\n", err);
+		if (err) {
+			printk("[AURA_MS51_INBOX] ms51_enable_pin output high.err %d\n",
+			       err);
 			goto ms51_on_remove;
 		}
 	}
-	printk("[AURA_MS51_INBOX] ms51_inbox_probe : platform_data->ms51_enable_pin=%d, value=%d  \n",platform_data->ms51_enable_pin,gpio_get_value(platform_data->ms51_enable_pin));
+	printk("[AURA_MS51_INBOX] ms51_inbox_probe : platform_data->ms51_enable_pin=%d, value=%d  \n",
+	       platform_data->ms51_enable_pin,
+	       gpio_get_value(platform_data->ms51_enable_pin));
 
-//set reset pin to low
-/*
+	//set reset pin to low
+	/*
 	if ( gpio_is_valid(platform_data->aura_3p3_en) ){
 		err = gpio_request(platform_data->aura_3p3_en, "aura_3p3_en");
 		if (err){
@@ -2496,10 +2616,10 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 */
-// Wait 0.35s for IC power on.
+	// Wait 0.35s for IC power on.
 	msleep(350);
 
-//check i2c function
+	//check i2c function
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
 		goto aura_en_remove;
@@ -2507,7 +2627,7 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		printk("[AURA_MS51_INBOX] I2C function test pass\n");
 
 	printk("[AURA_MS51_INBOX] get fw_mode in probe function.\n");
-	memset(buf_cmd,0,sizeof(unsigned char)*48);
+	memset(buf_cmd, 0, sizeof(unsigned char) * 48);
 	buf_cmd[0] = 0xCA;
 	/*for(i=0;i<48;i++){
 		printk("[AURA_MS51_INBOX] buf[%d]= %x",i,buf[i]);
@@ -2517,76 +2637,78 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	//i2c_read_bytes(client, buf_cmd, 48, data, 1);
 
 	//send register address
-	msgs[0].flags = !I2C_M_RD;	//write
+	msgs[0].flags = !I2C_M_RD; //write
 	msgs[0].addr = client->addr;
 	msgs[0].len = 48;
 	msgs[0].buf = buf_cmd;
-	i2c_transfer(client->adapter,&msgs[0], 1);
+	i2c_transfer(client->adapter, &msgs[0], 1);
 
 	msleep(1);
 	//read data
-	msgs[1].flags = I2C_M_RD;		//read
+	msgs[1].flags = I2C_M_RD; //read
 	msgs[1].addr = client->addr;
 	msgs[1].len = 1;
 	msgs[1].buf = data;
 
-	i2c_transfer(client->adapter,&msgs[1], 1);
+	i2c_transfer(client->adapter, &msgs[1], 1);
 
 	mutex_unlock(&platform_data->ms51_mutex);
 
-	while(data[0]!=1 && data[0]!=2){
-		printk("[AURA_MS51_INBOX] get fw_mode in probe failed for the %d time, we will reset and retry\n",count);
-		if ( gpio_is_valid(platform_data->ms51_enable_pin) ) {
+	while (data[0] != 1 && data[0] != 2) {
+		printk("[AURA_MS51_INBOX] get fw_mode in probe failed for the %d time, we will reset and retry\n",
+		       count);
+		if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 			gpio_set_value(platform_data->ms51_enable_pin, 0);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] ms51_on is not vaild\n");
 		}
-		if ( gpio_is_valid(platform_data->ms51_enable_pin) ) {
+		if (gpio_is_valid(platform_data->ms51_enable_pin)) {
 			gpio_set_value(platform_data->ms51_enable_pin, 1);
-		}else {
+		} else {
 			printk("[AURA_MS51_INBOX] ms51_on is not vaild\n");
 		}
 		msleep(500); //sleep 350ms for waiting ic power on.
-		memset(buf_cmd,0,sizeof(unsigned char)*48);
+		memset(buf_cmd, 0, sizeof(unsigned char) * 48);
 		buf_cmd[0] = 0xCA;
 		mutex_lock(&platform_data->ms51_mutex);
-		msgs[0].flags = !I2C_M_RD;	//write
+		msgs[0].flags = !I2C_M_RD; //write
 		msgs[0].addr = client->addr;
 		msgs[0].len = 48;
 		msgs[0].buf = buf_cmd;
-		i2c_transfer(client->adapter,&msgs[0], 1);
+		i2c_transfer(client->adapter, &msgs[0], 1);
 
 		msleep(1);
 
-		msgs[1].flags = I2C_M_RD;		//read
+		msgs[1].flags = I2C_M_RD; //read
 		msgs[1].addr = client->addr;
 		msgs[1].len = 1;
 		msgs[1].buf = data;
-		i2c_transfer(client->adapter,&msgs[1], 1);
+		i2c_transfer(client->adapter, &msgs[1], 1);
 		mutex_unlock(&platform_data->ms51_mutex);
-		count=count+1;
-		if(count==10)
+		count = count + 1;
+		if (count == 10)
 			break;
 	}
-	if(data[0]!=1 && data[0]!=2){
-			printk("[AURA_MS51_INBOX] get fw_mode in probe failed for the second time, we will return\n");
-			goto aura_en_remove;
-		}
-// Register sys class  
-	err = aura_sync_register(&client->dev, platform_data);
-	if (err) {
-		printk("[AURA_MS51_INBOX] Failed to register LED device: %d\n", err);
+	if (data[0] != 1 && data[0] != 2) {
+		printk("[AURA_MS51_INBOX] get fw_mode in probe failed for the second time, we will return\n");
 		goto aura_en_remove;
 	}
-	err = sysfs_create_group(&platform_data->led.dev->kobj, &pwm_attr_group);
+	// Register sys class
+	err = aura_sync_register(&client->dev, platform_data);
+	if (err) {
+		printk("[AURA_MS51_INBOX] Failed to register LED device: %d\n",
+		       err);
+		goto aura_en_remove;
+	}
+	err = sysfs_create_group(&platform_data->led.dev->kobj,
+				 &pwm_attr_group);
 	if (err)
 		goto unled;
-
 
 	platform_data->current_mode = 0x0;
 	platform_data->suspend_state = false;
 
-// Default Calibration Data
+	// Default Calibration Data
 	platform_data->RED_MAX = 255;
 	platform_data->GREEN_MAX = 255;
 	platform_data->BLUE_MAX = 255;
@@ -2600,22 +2722,23 @@ static int ms51_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			goto unled;
 	}
 
-	platform_data->hwmon_dev = hwmon_device_register_with_groups(&client->dev, "Inbox_Fan", NULL, NULL); //for fan hwmon nodes
+	platform_data->hwmon_dev = hwmon_device_register_with_groups(
+		&client->dev, "Inbox_Fan", NULL, NULL); //for fan hwmon nodes
 	if (IS_ERR(platform_data->hwmon_dev)) {
 		err = PTR_ERR(platform_data->hwmon_dev);
 		goto fan_remove;
 	}
 #endif
 
-// Set global variable
+	// Set global variable
 	g_pdata = platform_data;
-	g_red=-1;
-    g_green=-1;
-   	g_blue=-1;
-    g_mode=-1;
-    g_speed=-1;
-    g_led_on=-1;
-    g_led2_on=-1;
+	g_red = -1;
+	g_green = -1;
+	g_blue = -1;
+	g_mode = -1;
+	g_speed = -1;
+	g_led_on = -1;
+	g_led2_on = -1;
 
 	printk("[AURA_MS51_INBOX] ms51_probe done.\n");
 	return 0;
@@ -2633,22 +2756,28 @@ unled:
 
 aura_en_remove:
 	printk("[AURA_MS51_INBOX] power off.\n");
-	if(gpio_is_valid(platform_data->aura_3p3_en)) {
-		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n", platform_data->aura_3p3_en);
+	if (gpio_is_valid(platform_data->aura_3p3_en)) {
+		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n",
+		       platform_data->aura_3p3_en);
 		err = gpio_direction_output(platform_data->aura_3p3_en, 0);
 		if (err)
-			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n", err);
-		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n", platform_data->aura_3p3_en);
+			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n",
+			       err);
+		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n",
+		       platform_data->aura_3p3_en);
 		gpio_free(platform_data->aura_3p3_en);
 	}
 
 ms51_on_remove:
-	if(gpio_is_valid(platform_data->ms51_enable_pin)) {
-		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n", platform_data->ms51_enable_pin);
+	if (gpio_is_valid(platform_data->ms51_enable_pin)) {
+		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n",
+		       platform_data->ms51_enable_pin);
 		err = gpio_direction_output(platform_data->ms51_enable_pin, 0);
 		if (err)
-			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n", err);
-		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n", platform_data->ms51_enable_pin);
+			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n",
+			       err);
+		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n",
+		       platform_data->ms51_enable_pin);
 		gpio_free(platform_data->ms51_enable_pin);
 	}
 
@@ -2665,7 +2794,7 @@ static int ms51_remove(struct i2c_client *client)
 #if FAN_ADD
 	int i = 0;
 	struct device *dev = &client->dev;
-	if(g_Charger_mode) {
+	if (g_Charger_mode) {
 		printk("[AURA_MS51_INBOX] In charger mode, stop ms51_remove\n");
 		return 0;
 	}
@@ -2689,35 +2818,41 @@ static int ms51_remove(struct i2c_client *client)
 		device_remove_file(dev, &fan_attr[i].dev_attr);
 
 	//--lock destroy
-	mutex_destroy(&platform_data->update_lock);	
+	mutex_destroy(&platform_data->update_lock);
 #endif
-// unregister
+	// unregister
 	printk("[AURA_MS51_INBOX] sysfs_remove_group\n");
 	sysfs_remove_group(&platform_data->led.dev->kobj, &pwm_attr_group);
 
 	printk("[AURA_MS51_INBOX] AURA_MS51_unregister\n");
 	aura_sync_unregister(platform_data);
-//destroy ms51 lock
+	//destroy ms51 lock
 	mutex_destroy(&platform_data->ms51_mutex);
 
-// reset pin
-	if(gpio_is_valid(platform_data->aura_3p3_en)) {
-		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n", platform_data->aura_3p3_en);
+	// reset pin
+	if (gpio_is_valid(platform_data->aura_3p3_en)) {
+		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n",
+		       platform_data->aura_3p3_en);
 		err = gpio_direction_output(platform_data->aura_3p3_en, 0);
 		if (err)
-			printk("[AURA_MS51_INBOX] aura_3p3_en output low, err %d\n", err);
+			printk("[AURA_MS51_INBOX] aura_3p3_en output low, err %d\n",
+			       err);
 
-		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n", platform_data->aura_3p3_en);
+		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n",
+		       platform_data->aura_3p3_en);
 		gpio_free(platform_data->aura_3p3_en);
 	}
-//power off
-	if(gpio_is_valid(platform_data->ms51_enable_pin)) {
-		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n", platform_data->ms51_enable_pin);
+	//power off
+	if (gpio_is_valid(platform_data->ms51_enable_pin)) {
+		printk("[AURA_MS51_INBOX] set GPIO[%d] output low\n",
+		       platform_data->ms51_enable_pin);
 		err = gpio_direction_output(platform_data->ms51_enable_pin, 0);
 		if (err)
-			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n", err);
+			printk("[AURA_MS51_INBOX] fan power_gpio output low, err %d\n",
+			       err);
 
-		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n", platform_data->ms51_enable_pin);
+		printk("[AURA_MS51_INBOX] Free GPIO[%d].\n",
+		       platform_data->ms51_enable_pin);
 		gpio_free(platform_data->ms51_enable_pin);
 	}
 
@@ -2728,15 +2863,16 @@ static int ms51_remove(struct i2c_client *client)
 int ms51_inbox_suspend(struct device *dev)
 {
 	int err = 0;
-	if(g_Charger_mode) {
+	if (g_Charger_mode) {
 		printk("[AURA_MS51_INBOX] In charger mode, stop ms51_suspend\n");
 		return 0;
 	}
-	printk("[AURA_MS51_INBOX] ms51_inbox_suspend : current_mode : 0x%x, dongle_switch_mode : %d\n", g_pdata->current_mode, dongle_switch_mode);
+	printk("[AURA_MS51_INBOX] ms51_inbox_suspend : current_mode : 0x%x, dongle_switch_mode : %d\n",
+	       g_pdata->current_mode, dongle_switch_mode);
 
-	if(!g_pdata->current_mode && !dongle_switch_mode){
+	if (!g_pdata->current_mode && !dongle_switch_mode) {
 		printk("[AURA_MS51_INBOX] Disable VDD.\n");
-		if ( gpio_is_valid(g_pdata->ms51_enable_pin) )
+		if (gpio_is_valid(g_pdata->ms51_enable_pin))
 			gpio_set_value(g_pdata->ms51_enable_pin, 0);
 	}
 
@@ -2748,15 +2884,16 @@ int ms51_inbox_suspend(struct device *dev)
 int ms51_inbox_resume(struct device *dev)
 {
 	int err = 0;
-	if(g_Charger_mode) {
+	if (g_Charger_mode) {
 		printk("[AURA_MS51_INBOX] In charger mode, stop ms51_resume\n");
 		return 0;
 	}
-	printk("[AURA_MS51_INBOX] ms51_inbox_resume : current_mode : 0x%x, dongle_switch_mode : %d\n", g_pdata->current_mode, dongle_switch_mode);
+	printk("[AURA_MS51_INBOX] ms51_inbox_resume : current_mode : 0x%x, dongle_switch_mode : %d\n",
+	       g_pdata->current_mode, dongle_switch_mode);
 
-	if(!g_pdata->current_mode && !dongle_switch_mode){
+	if (!g_pdata->current_mode && !dongle_switch_mode) {
 		printk("[AURA_MS51_INBOX] Enable VDD.\n");
-		if ( gpio_is_valid(g_pdata->ms51_enable_pin) )
+		if (gpio_is_valid(g_pdata->ms51_enable_pin))
 			gpio_set_value(g_pdata->ms51_enable_pin, 1);
 	}
 
@@ -2766,20 +2903,22 @@ int ms51_inbox_resume(struct device *dev)
 }
 
 static const struct i2c_device_id ms51_id[] = {
-	{ "ms51_i2c", 0},
+	{ "ms51_i2c", 0 },
 	{},
 };
 //MODULE_DEVICE_TABLE(i2c, ms51_id);
 
 static const struct dev_pm_ops ms51_pm_ops = {
-	.suspend	= ms51_inbox_suspend,
-	.resume	= ms51_inbox_resume,
+	.suspend = ms51_inbox_suspend,
+	.resume = ms51_inbox_resume,
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id ms51_match_table[] = {
-	{ .compatible = "ms51_inbox",},
-	{ },
+	{
+		.compatible = "ms51_inbox",
+	},
+	{},
 };
 #else
 #define ene_match_table NULL
@@ -2807,7 +2946,7 @@ static int __init ms51_bus_init(void)
 		printk("[AURA_MS51_INBOX] NUVOTON MS51 driver int failed.\n");
 	else
 		printk("[AURA_MS51_INBOX] NUVOTON MS51 driver int success.\n");
-	
+
 	return ret;
 }
 module_init(ms51_bus_init);

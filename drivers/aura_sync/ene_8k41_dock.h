@@ -38,6 +38,6 @@ struct ene_8k41_platform_data {
 	struct notifier_block notifier;
 
 	//struct device dev;;
-	struct led_classdev led;	/* LED control */
+	struct led_classdev led; /* LED control */
 	char led_name[32];
 };

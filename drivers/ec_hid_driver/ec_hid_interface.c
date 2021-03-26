@@ -44,8 +44,8 @@ static int ec_usb_suspend(struct hid_device *hdev, pm_message_t message)
 }
 #endif /* CONFIG_PM */
 
-static int ec_usb_raw_event(struct hid_device *hdev,
-		struct hid_report *report, u8 *data, int size)
+static int ec_usb_raw_event(struct hid_device *hdev, struct hid_report *report,
+			    u8 *data, int size)
 {
 	return 0;
 }
@@ -79,7 +79,7 @@ static int ec_usb_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	else
 		ENE_upgrade_mode = true;
 
-	if (ENE_upgrade_mode){
+	if (ENE_upgrade_mode) {
 		printk("[EC_USB] In Upgrade mode, trigger update UI.");
 		ec_hid_uevent();
 		printk("[EC_USB] ec_usb_probe : %d\n", ENE_upgrade_mode);
@@ -93,7 +93,7 @@ static int ec_usb_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	g_hidraw = hdev->hidraw;
 
 	return 0;
-	
+
 err_free:
 	printk("[EC_USB] ec_usb_probe fail.\n");
 	return ret;
@@ -106,7 +106,7 @@ static void ec_usb_remove(struct hid_device *hdev)
 
 	ec_mutex_lock("hidraw");
 	printk("[EC_HID] hid_used is %d\n", hid_used);
-	g_hidraw = NULL;	//ASUS_BSP Deeo : clean g_hidraw for JEDI dongle driver
+	g_hidraw = NULL; //ASUS_BSP Deeo : clean g_hidraw for JEDI dongle driver
 	hid_used = false;
 	ec_mutex_unlock("hidraw");
 
@@ -120,23 +120,21 @@ static void ec_usb_remove(struct hid_device *hdev)
 }
 
 static struct hid_device_id ec_idtable[] = {
-	{ HID_USB_DEVICE(0x0CF2, 0x7750),
-		.driver_data = 0 },
-	{ HID_USB_DEVICE(0x0CF2, 0x7758),
-		.driver_data = 0 },
-	{ }
+	{ HID_USB_DEVICE(0x0CF2, 0x7750), .driver_data = 0 },
+	{ HID_USB_DEVICE(0x0CF2, 0x7758), .driver_data = 0 },
+	{}
 };
 MODULE_DEVICE_TABLE(hid, ec_idtable);
 
 static struct hid_driver ec_usb_driver = {
-	.name		= "ec_hid_interface",
-	.id_table		= ec_idtable,
-	.probe			= ec_usb_probe,
-	.remove			= ec_usb_remove,
-	.raw_event		= ec_usb_raw_event,
+	.name = "ec_hid_interface",
+	.id_table = ec_idtable,
+	.probe = ec_usb_probe,
+	.remove = ec_usb_remove,
+	.raw_event = ec_usb_raw_event,
 #ifdef CONFIG_PM
-	.suspend          = ec_usb_suspend,
-	.resume			= ec_usb_resume,
+	.suspend = ec_usb_suspend,
+	.resume = ec_usb_resume,
 #endif
 };
 

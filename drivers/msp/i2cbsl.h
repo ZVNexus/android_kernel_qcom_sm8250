@@ -32,76 +32,74 @@
 #ifndef _BSL_HOST_H
 #define _BSL_HOST_H
 
-
 /* Defines for BSL Commands */
-#define MSP430_I2C_MASSERASE    0x15
-#define MSP430_I2C_READDATA     0x18
-#define MSP430_I2C_SEGERASE     0x12
-#define MSP430_I2C_BSLPASSWORD  0x11
-#define MSP430_I2C_UNLOCKINFO   0x13
-#define MSP430_I2C_SENDDATA     0x10
-#define MSP430_I2C_SETPC        0x17
-#define MSP430_I2C_CHECKCRC     0x16
-#define MSP430_I2C_HEADER       0x80
-#define MSP430_I2C_RESET        0x1C
-#define MSP430_I2C_SUCCESS      0x01
+#define MSP430_I2C_MASSERASE 0x15
+#define MSP430_I2C_READDATA 0x18
+#define MSP430_I2C_SEGERASE 0x12
+#define MSP430_I2C_BSLPASSWORD 0x11
+#define MSP430_I2C_UNLOCKINFO 0x13
+#define MSP430_I2C_SENDDATA 0x10
+#define MSP430_I2C_SETPC 0x17
+#define MSP430_I2C_CHECKCRC 0x16
+#define MSP430_I2C_HEADER 0x80
+#define MSP430_I2C_RESET 0x1C
+#define MSP430_I2C_SUCCESS 0x01
 #define MSP430_I2C_MESSAGE_RESP 0x3B
-#define MSP430_I2C_CMD_RESP     0x3A
-#define MSP430_I2C_ATTEMPTS     5
-#define MSP430_I2C_BUFFER_SIZE             1024
-#define MSP430_MAX_CHUNK_SIZE   250
+#define MSP430_I2C_CMD_RESP 0x3A
+#define MSP430_I2C_ATTEMPTS 5
+#define MSP430_I2C_BUFFER_SIZE 1024
+#define MSP430_MAX_CHUNK_SIZE 250
 
 /* Largest Address on the bus */
-#define MAX_I2C_ADDR            0xFE
+#define MAX_I2C_ADDR 0xFE
 
 /* Defines for response codes */
-#define MSP430_STATUS_OPERATION_OK               0x00
-#define MSP430_STATUS_PASSWORD_ERROR             0x05
-#define MSP430_STATUS_TXTFILE_ERROR             0x101
-#define MSP430_STATUS_RESET_ERROR               0x102
-#define MSP430_STATUS_I2C_NOT_FOUND             0x103
-#define MSP430_STATUS_I2C_TRANSACTION_ERROR     0x104
-#define MSP430_STATUS_INVALID_RESP_HEADER       0x105
-#define MSP430_STATUS_INVALID_RESP_LENGTH       0x106
-#define MSP430_STATUS_INVALID_RESP_CRC          0x107
-#define MSP430_STATUS_INVOKE_FAIL               0x108
-#define MSP430_STATUS_VERIFICATION_FAIL         0x109
+#define MSP430_STATUS_OPERATION_OK 0x00
+#define MSP430_STATUS_PASSWORD_ERROR 0x05
+#define MSP430_STATUS_TXTFILE_ERROR 0x101
+#define MSP430_STATUS_RESET_ERROR 0x102
+#define MSP430_STATUS_I2C_NOT_FOUND 0x103
+#define MSP430_STATUS_I2C_TRANSACTION_ERROR 0x104
+#define MSP430_STATUS_INVALID_RESP_HEADER 0x105
+#define MSP430_STATUS_INVALID_RESP_LENGTH 0x106
+#define MSP430_STATUS_INVALID_RESP_CRC 0x107
+#define MSP430_STATUS_INVOKE_FAIL 0x108
+#define MSP430_STATUS_VERIFICATION_FAIL 0x109
 
-#define CRC16_POLY              0x1021
-#define uintn_t                 UINTN
+#define CRC16_POLY 0x1021
+#define uintn_t UINTN
 
-#define MSP430_I2C_SEGMENT_SIZE                 512
-#define MSP430_RESET_VECTOR_ADDR                0xFFFE
+#define MSP430_I2C_SEGMENT_SIZE 512
+#define MSP430_RESET_VECTOR_ADDR 0xFFFE
 
 /* Host Packet Structures */
-typedef struct sI2CPayload
-{
-    uint8_t ui8Command;
-    uint8_t ui8Addr_L;
-    uint8_t ui8Addr_M;
-    uint8_t ui8Addr_H;
-    uint8_t* ui8pData;
+typedef struct sI2CPayload {
+	uint8_t ui8Command;
+	uint8_t ui8Addr_L;
+	uint8_t ui8Addr_M;
+	uint8_t ui8Addr_H;
+	uint8_t *ui8pData;
 } tI2CPayload;
 
-typedef struct sI2CBSLPacket
-{
-    uint8_t ui8Header;
-    uint16_t ui16Length;
-    tI2CPayload tPayload;
-    uint16_t ui16Checksum;
+typedef struct sI2CBSLPacket {
+	uint8_t ui8Header;
+	uint16_t ui16Length;
+	tI2CPayload tPayload;
+	uint16_t ui16Checksum;
 } tI2CBSLPacket;
 
 /* Public Function ProtoTypes */
-extern uint32_t MSP430BSL_sendData(const uint8_t* data, uint32_t addr, uint32_t size);
-extern uint32_t MSP430BSL_readData(uint8_t* inBuffer, uint32_t addr, 
-                                                                uint32_t size);
-extern uint32_t MSP430BSL_unlockDevice(uint8_t* password);
+extern uint32_t MSP430BSL_sendData(const uint8_t *data, uint32_t addr,
+				   uint32_t size);
+extern uint32_t MSP430BSL_readData(uint8_t *inBuffer, uint32_t addr,
+				   uint32_t size);
+extern uint32_t MSP430BSL_unlockDevice(uint8_t *password);
 extern uint32_t MSP430BSL_massErase(void);
-extern uint16_t MSP430BSL_checkCRC(uint32_t addr, uint32_t length, 
-                                                        uint16_t* crcCalculate);
-extern uint32_t MSP430BSL_invokeBSL(uint8_t* data, uint32_t length);
+extern uint16_t MSP430BSL_checkCRC(uint32_t addr, uint32_t length,
+				   uint16_t *crcCalculate);
+extern uint32_t MSP430BSL_invokeBSL(uint8_t *data, uint32_t length);
 extern uint32_t MSP430BSL_setProgramCounter(uint16_t addr);
 
-extern uint16_t calculateCRC16(uint8_t* data, uint32_t length);
+extern uint16_t calculateCRC16(uint8_t *data, uint32_t length);
 
 #endif /* BSLHOST */

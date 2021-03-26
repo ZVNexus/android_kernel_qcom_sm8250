@@ -79,10 +79,8 @@ static void nl_data_ready(struct sk_buff *__skb)
 		pid = nlh->nlmsg_pid;
 	}
 
-    kfree_skb(skb);
-
+	kfree_skb(skb);
 }
-
 
 int netlink_init(void)
 {
@@ -95,8 +93,7 @@ int netlink_init(void)
 	netlink_cfg.input = nl_data_ready;
 	netlink_cfg.cb_mutex = NULL;
 
-	nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST,
-			&netlink_cfg);
+	nl_sk = netlink_kernel_create(&init_net, NETLINK_TEST, &netlink_cfg);
 
 	if (!nl_sk) {
 		pr_err("create netlink socket error\n");

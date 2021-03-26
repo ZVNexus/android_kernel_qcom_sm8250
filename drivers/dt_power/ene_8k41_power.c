@@ -17,84 +17,88 @@
 
 static struct ene_8k41_platform_data *g_pdata;
 
-static int i2c_read_bytes(struct i2c_client *client, char *write_buf, int writelen, char *read_buf, int readlen)
+static int i2c_read_bytes(struct i2c_client *client, char *write_buf,
+			  int writelen, char *read_buf, int readlen)
 {
 	struct i2c_msg msgs[2];
-	int ret=-1;
+	int ret = -1;
 
 	//send register address
-	msgs[0].flags = !I2C_M_RD;	//write
+	msgs[0].flags = !I2C_M_RD; //write
 	msgs[0].addr = client->addr;
 	msgs[0].len = writelen;
 	msgs[0].buf = write_buf;
-	
+
 	//read data
-	msgs[1].flags = I2C_M_RD;		//read
+	msgs[1].flags = I2C_M_RD; //read
 	msgs[1].addr = client->addr;
 	msgs[1].len = readlen;
 	msgs[1].buf = read_buf;
 
-	ret = i2c_transfer(client->adapter,msgs, 2);
+	ret = i2c_transfer(client->adapter, msgs, 2);
 	return ret;
 }
 
-static int i2c_write_bytes(struct i2c_client *client, char *write_buf, int writelen)
+static int i2c_write_bytes(struct i2c_client *client, char *write_buf,
+			   int writelen)
 {
 	struct i2c_msg msg;
-	int ret=-1;
-	
-	msg.flags = !I2C_M_RD;		//write
+	int ret = -1;
+
+	msg.flags = !I2C_M_RD; //write
 	msg.addr = client->addr;
 	msg.len = writelen;
-	msg.buf = write_buf; 
+	msg.buf = write_buf;
 
-	ret = i2c_transfer(client->adapter,&msg, 1);
+	ret = i2c_transfer(client->adapter, &msg, 1);
 	return ret;
-} 
+}
 
-static int ene_8k41_read_bytes(struct i2c_client *client, short addr, char *data)
+static int ene_8k41_read_bytes(struct i2c_client *client, short addr,
+			       char *data)
 {
 	int err = 0;
-	unsigned char buf[16] = {0};
+	unsigned char buf[16] = { 0 };
 
 	buf[0] = 0x00;
 	buf[1] = (addr >> 8) & 0xFF;
 	buf[2] = addr & 0xFF;
 
-//	printk("[ENE_DT] ene_8k41_read_bytes : addr: 0x%x, buf[1] : 0x%x, buf[2] : 0x%x\n", (addr & 0xFFFF), buf[1], buf[2]);
-	err = i2c_write_bytes(client, buf, 3);	//set register address
-	if (err !=1)
+	//	printk("[ENE_DT] ene_8k41_read_bytes : addr: 0x%x, buf[1] : 0x%x, buf[2] : 0x%x\n", (addr & 0xFFFF), buf[1], buf[2]);
+	err = i2c_write_bytes(client, buf, 3); //set register address
+	if (err != 1)
 		printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
 	buf[0] = 0x81;
-	err = i2c_read_bytes(client, buf, 1, data, 1);	//send read command
+	err = i2c_read_bytes(client, buf, 1, data, 1); //send read command
 	if (err != 2)
 		printk("[ENE_DT] i2c_read_bytes:err %d\n", err);
 
 	return err;
 }
 
-static int ene_8k41_write_bytes(struct i2c_client *client, short addr, char value)
+static int ene_8k41_write_bytes(struct i2c_client *client, short addr,
+				char value)
 {
 	int err = 0;
-	unsigned char buf[16] = {0};
+	unsigned char buf[16] = { 0 };
 
 	buf[0] = 0x00;
 	buf[1] = (addr >> 8) & 0xFF;
 	buf[2] = addr & 0xFF;
 
-//	printk("[ENE_DT] ene_8k41_write_bytes : addr: 0x%x, buf[1] : 0x%x, buf[2] : 0x%x, value : 0x%x\n", (addr & 0xFFFF), buf[1], buf[2], value);
-	err = i2c_write_bytes(client, buf, 3);	//set register address
-	if (err !=1)
+	//	printk("[ENE_DT] ene_8k41_write_bytes : addr: 0x%x, buf[1] : 0x%x, buf[2] : 0x%x, value : 0x%x\n", (addr & 0xFFFF), buf[1], buf[2], value);
+	err = i2c_write_bytes(client, buf, 3); //set register address
+	if (err != 1)
 		printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
 	buf[0] = 0x01;
 	buf[1] = value;
-	
-	err = i2c_write_bytes(client, buf, 2);	//set register address
-	if (err !=1)
+
+	err = i2c_write_bytes(client, buf, 2); //set register address
+	if (err != 1)
 		printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
-	
+
 	return err;
 }
 
@@ -157,36 +161,38 @@ static int ene_ReadFirmware(char *fw_name, unsigned char *fw_buf)
 static char ene_CheckFirmwareVer(struct i2c_client *client)
 {
 	int err = 0;
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 
 	err = ene_8k41_read_bytes(client, 0x80C0, data);
-	if (err != 2){
+	if (err != 2) {
 		printk("[ENE_DT] fw_check:err %d\n", err);
 		data[0] = 0xFF;
 	}
 
-	return (u8) data[0];
+	return (u8)data[0];
 }
 
 static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 {
 	int err = 0;
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
-	unsigned char data[2] = {0};
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
+	unsigned char data[2] = { 0 };
 	//unsigned char buf[129] = {0};
 	unsigned char *buf;
 	//unsigned char tmp[129] = {0};
 	//int  i = 0;
 	short addr;
 	int retry = 0;
-	buf = kmalloc(sizeof(unsigned char)*129, GFP_DMA); //for i2c transfer --need to free
+	buf = kmalloc(sizeof(unsigned char) * 129,
+		      GFP_DMA); //for i2c transfer --need to free
 	err = ene_8k41_read_bytes(client, 0xFF8F, data);
 	if (err != 2)
 		printk("[ENE_DT] Check REG[0xFF8F]:err %d\n", err);
 
 	printk("[ENE_DT] REG[0xFF8F] : 0x%x\n", data[0]);
 
-	if( (u8)(data[0]) <= 0x40){
+	if ((u8)(data[0]) <= 0x40) {
 		platform_data->fw_version = ene_CheckFirmwareVer(client);
 		printk("[ENE_DT] FW VER : 0x%x\n", platform_data->fw_version);
 		//if ( platform_data->fw_version == 0x0) { // rember change condition.
@@ -201,7 +207,7 @@ static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 	printk("[ENE_DT] Start ene_UpdateFirmware\n");
 
 	err = ene_8k41_write_bytes(client, 0xF018, 0xCE);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[F010]: write err %d\n", err);
 
 	err = ene_8k41_read_bytes(client, 0xF018, data);
@@ -210,24 +216,24 @@ static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 
 	printk("[ENE_DT] REG[0xF018]: 0x%x\n", data[0]);
 
-// (1) Reset 8051
+	// (1) Reset 8051
 	printk("[ENE_DT] Reset 8051 =====\n");
 	err = ene_8k41_write_bytes(client, 0xF010, 0x5);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF010]: write err %d\n", err);
 
 	msleep(500);
 
-// (2) Read & Fill OSC32M freq.
+	// (2) Read & Fill OSC32M freq.
 	printk("[ENE_DT] Read & Fill OSC32M freq =====\n");
 	err = ene_8k41_write_bytes(client, 0xF808, 0xF0);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF808]: write err %d\n", err);
 	err = ene_8k41_write_bytes(client, 0xF809, 0x01);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF809]: write err %d\n", err);
 	err = ene_8k41_write_bytes(client, 0xF807, 0x90);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 
 	err = ene_8k41_read_bytes(client, 0xF80B, data);
@@ -239,92 +245,101 @@ static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 	if (err != 1)
 		printk("[ENE_DT] REG[0xF806]: write err %d\n", err);
 
-// (3) Fill program & Erase timing
+	// (3) Fill program & Erase timing
 	printk("[ENE_DT] Fill program & Erase timing =====\n");
 	err = ene_8k41_write_bytes(client, 0xF815, 0x10);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF815]: write err %d\n", err);
 	err = ene_8k41_write_bytes(client, 0xF816, 0x11);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF816]: write err %d\n", err);
 	err = ene_8k41_write_bytes(client, 0xF817, 0x06);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF817]: write err %d\n", err);
 	err = ene_8k41_write_bytes(client, 0xF818, 0x07);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF818]: write err %d\n", err);
 
-// (4) Erase
+	// (4) Erase
 	printk("[ENE_DT] Erase page from 0x0000 to 0x3F80 =====\n");
-	for (addr = 0x0000 ; addr <= 0x3F80 ; addr+= 0x80) {
-
+	for (addr = 0x0000; addr <= 0x3F80; addr += 0x80) {
 		printk("[ENE_DT] set addr : 0x%04x\n", addr);
-		err = ene_8k41_write_bytes(client, 0xF808, (addr & 0xFF));				//	Addr_L
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF808,
+					   (addr & 0xFF)); //	Addr_L
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF808]: write err %d\n", err);
-		err = ene_8k41_write_bytes(client, 0xF809, (addr >> 8) & 0xFF);		//	Addr_H
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF809,
+					   (addr >> 8) & 0xFF); //	Addr_H
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF809]: write err %d\n", err);
 
-		err = ene_8k41_write_bytes(client, 0xF807, 0x20);	// erase page cmd
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF807,
+					   0x20); // erase page cmd
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 
-		while(1){	 // check cmd finished. 0xF800[7] = 1
+		while (1) { // check cmd finished. 0xF800[7] = 1
 			msleep(50);
 			data[0] = 0x0;
 			err = ene_8k41_read_bytes(client, 0xF800, data);
 			if (err != 2) {
-				printk("[ENE_DT] REG[0xF800]: read err %d\n", err);
+				printk("[ENE_DT] REG[0xF800]: read err %d\n",
+				       err);
 			}
-			if ( ((data[0] >> 7) & 0x1) == 1 ){
+			if (((data[0] >> 7) & 0x1) == 1) {
 				//printk("[ENE_DT] check REG[0xF800] pass, 0x%02x\n", (data[0]));
-				retry=0;
+				retry = 0;
 				break;
 			}
 			printk("[ENE_DT] check REG[0xF800], 0x%02x\n", data[0]);
 			retry++;
 			if (retry > 10) {
-				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n", retry);
+				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n",
+				       retry);
 				kfree(buf);
 				return -1;
 			}
 		}
 	}
 	printk("[ENE_DT] erase page finished. =====\n");
-	
-// (5) Program
-	printk("[ENE_DT] Program FW from 0x0000 to 0x3F80 =====\n");
-	for (addr = 0x0000 ; addr <= 0x3F80 ; addr = addr + 0x80) {
 
+	// (5) Program
+	printk("[ENE_DT] Program FW from 0x0000 to 0x3F80 =====\n");
+	for (addr = 0x0000; addr <= 0x3F80; addr = addr + 0x80) {
 		printk("[ENE_DT] set addr : 0x%04x\n", addr);
-		err = ene_8k41_write_bytes(client, 0xF808, (addr & 0xFF));				//	Addr_L
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF808,
+					   (addr & 0xFF)); //	Addr_L
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF808]: write err %d\n", err);
-		err = ene_8k41_write_bytes(client, 0xF809, (addr >> 8) & 0xFF);		//	Addr_H
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF809,
+					   (addr >> 8) & 0xFF); //	Addr_H
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF809]: write err %d\n", err);
 
-		err = ene_8k41_write_bytes(client, 0xF807, 0x80);	// 3. Clear HVPL data
-		if (err !=1)
+		err = ene_8k41_write_bytes(client, 0xF807,
+					   0x80); // 3. Clear HVPL data
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 
-		while(1){	 // 4. check cmd finished 0xF800[7] = 1
+		while (1) { // 4. check cmd finished 0xF800[7] = 1
 			msleep(50);
 			data[0] = 0x0;
 			err = ene_8k41_read_bytes(client, 0xF800, data);
 			if (err != 2) {
-				printk("[ENE_DT] REG[0xF800]: read err %d\n", err);
+				printk("[ENE_DT] REG[0xF800]: read err %d\n",
+				       err);
 			}
-			if ( ((data[0] >> 7) & 0x1) == 1 ){
+			if (((data[0] >> 7) & 0x1) == 1) {
 				//printk("[ENE_DT] check REG[0xF800] pass, 0x%02x\n", (data[0]));
 				retry = 0;
 				break;
 			}
-			printk("[ENE_DT] check REG[0xF800], 0x%02x\n", (data[0]));
+			printk("[ENE_DT] check REG[0xF800], 0x%02x\n",
+			       (data[0]));
 			retry++;
 			if (retry > 10) {
-				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n", retry);
+				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n",
+				       retry);
 				kfree(buf);
 				return -1;
 			}
@@ -332,59 +347,63 @@ static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 
 		// 5. Set address to 0xF80A
 		buf[0] = 0x00;
-		buf[1] = 0xF8;	//Addr_H
-		buf[2] = 0x0A;	//Addr_L
-		err = i2c_write_bytes(client, buf, 3);	//set register address
-		if (err !=1)
+		buf[1] = 0xF8; //Addr_H
+		buf[2] = 0x0A; //Addr_L
+		err = i2c_write_bytes(client, buf, 3); //set register address
+		if (err != 1)
 			printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
 		// 6. Send data to buffer
 		buf[0] = 0x05;
-		memcpy( &(buf[1]), fw_buf + addr, 128); // copy fw_buf to buf
+		memcpy(&(buf[1]), fw_buf + addr, 128); // copy fw_buf to buf
 
-		err = i2c_write_bytes(client, buf, 129);	 // 128 byte + 1 cmd = 129
-		if (err !=1)
+		err = i2c_write_bytes(client, buf,
+				      129); // 128 byte + 1 cmd = 129
+		if (err != 1)
 			printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
 		// 7. Set address to 0xF807
 		buf[0] = 0x00;
-		buf[1] = 0xF8;	//Addr_H
-		buf[2] = 0x07;	//Addr_L
-		err = i2c_write_bytes(client, buf, 3);	//set register address
-		if (err !=1)
+		buf[1] = 0xF8; //Addr_H
+		buf[2] = 0x07; //Addr_L
+		err = i2c_write_bytes(client, buf, 3); //set register address
+		if (err != 1)
 			printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
 		// 8. Program page
 		buf[0] = 0x05;
 		buf[1] = 0x70;
 		err = i2c_write_bytes(client, buf, 2);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] i2c_write_bytes:err %d\n", err);
 
-		while(1){	 // 9. check cmd finished 0xF800[7] = 1
+		while (1) { // 9. check cmd finished 0xF800[7] = 1
 			msleep(50);
 			data[0] = 0x0;
 			err = ene_8k41_read_bytes(client, 0xF800, data);
 			if (err != 2) {
-				printk("[ENE_DT] REG[0xF800]: read err %d\n", err);
+				printk("[ENE_DT] REG[0xF800]: read err %d\n",
+				       err);
 			}
-			if ( ((data[0] >> 7) & 0x1) == 1 ){
+			if (((data[0] >> 7) & 0x1) == 1) {
 				//printk("[ENE_DT] check REG[0xF800] pass, 0x%02x\n", (data[0]));
 				retry = 0;
 				break;
 			}
-			printk("[ENE_DT] check REG[0xF800], 0x%02x\n", (data[0]));
+			printk("[ENE_DT] check REG[0xF800], 0x%02x\n",
+			       (data[0]));
 			retry++;
 			if (retry > 10) {
-				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n", retry);
+				printk("[ENE_DT] retry too many times: %d, Force exit!!!\n",
+				       retry);
 				kfree(buf);
 				return -1;
 			}
 		}
 	}
-	
-////////////////////////////
-/*
+
+	////////////////////////////
+	/*
 	printk("[ENE_DT] read FW in 8K41 rom +++\n");
 	for (addr = 0x0000 ; addr <= 0x0080 ; addr = addr + 0x80) {
 		printk("[ENE_DT] set addr : 0x%04x\n", addr);
@@ -413,30 +432,34 @@ static int ene_UpdateFirmware(struct i2c_client *client, char *fw_buf)
 	}
 	printk("[ENE_DT] read FW in 8K41 rom ---\n");
 */
-////////////////////////////
+	////////////////////////////
 
-// (9) Restart 8051
+	// (9) Restart 8051
 	printk("[ENE_DT] Restart 8051.\n");
 	err = ene_8k41_write_bytes(client, 0xF010, 0x04);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 
 	msleep(500);
 
 	err = ene_8k41_write_bytes(client, 0xF018, 0x00);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[F010]: write err %d\n", err);
 
 	platform_data->FW_update_done = true;
-	printk("[ENE_DT] ene_UpdateFirmware finished. %d\n", platform_data->FW_update_done);
+	printk("[ENE_DT] ene_UpdateFirmware finished. %d\n",
+	       platform_data->FW_update_done);
 	kfree(buf);
 	return 0;
 }
 
-static ssize_t fw_update_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t fw_update_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	int err = 0;
 	char fw_name[128];
 	unsigned char *fw_buf;
@@ -444,16 +467,16 @@ static ssize_t fw_update_store(struct device *dev, struct device_attribute *attr
 
 	memset(fw_name, 0, sizeof(fw_name));
 	sprintf(fw_name, "%s", buf);
-	fw_name[count-1] = '\0';
-	
+	fw_name[count - 1] = '\0';
+
 	printk("[ENE_DT] fwname : %s\n", fw_name);
 
 	// get fs_size
 	fw_size = ene_GetFirmwareSize(fw_name);
 	printk("[ENE_DT] fwsize %d\n", fw_size);
-	
+
 	// set fw_buf
-	fw_buf = kmalloc(fw_size+1 ,GFP_ATOMIC);
+	fw_buf = kmalloc(fw_size + 1, GFP_ATOMIC);
 
 	// read FW content
 	if (ene_ReadFirmware(fw_name, fw_buf)) {
@@ -465,7 +488,7 @@ static ssize_t fw_update_store(struct device *dev, struct device_attribute *attr
 	// Start update FW
 	mutex_lock(&g_pdata->ene_mutex);
 	err = ene_UpdateFirmware(client, fw_buf);
-	if(err)
+	if (err)
 		printk("[ENE_DT] ene_UpdateFirmware, err %d\n", err);
 
 	// Update FW VER
@@ -476,20 +499,22 @@ static ssize_t fw_update_store(struct device *dev, struct device_attribute *attr
 	return count;
 }
 
-static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
-	unsigned char data[4] = {0};
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
+	unsigned char data[4] = { 0 };
 	int err = 0;
 
 	mutex_lock(&g_pdata->ene_mutex);
 
 	err = ene_8k41_read_bytes(client, 0xF018, data);
-	if (err != 2){
+	if (err != 2) {
 		printk("[ENE_DT] fw_ver_show:err %d\n", err);
 		mutex_unlock(&g_pdata->ene_mutex);
-		return snprintf(buf, PAGE_SIZE,"i2c_error\n");
+		return snprintf(buf, PAGE_SIZE, "i2c_error\n");
 	}
 
 	platform_data->fw_version = ene_CheckFirmwareVer(client);
@@ -498,24 +523,26 @@ static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr,cha
 	mutex_unlock(&g_pdata->ene_mutex);
 
 	//if (data[0] != 0x0 && !platform_data->FW_update_done){
-	if (data[0] != 0x0){
+	if (data[0] != 0x0) {
 		printk("[ENE_DT] FW Error, REG[0xF018] : 0x%x\n", data[0]);
-		return snprintf(buf, PAGE_SIZE,"0x0\n");
+		return snprintf(buf, PAGE_SIZE, "0x0\n");
 	}
 
-	if (platform_data->fw_version == 0xFF){
-		return snprintf(buf, PAGE_SIZE,"i2c_error\n");
+	if (platform_data->fw_version == 0xFF) {
+		return snprintf(buf, PAGE_SIZE, "i2c_error\n");
 	}
 
-	return snprintf(buf, PAGE_SIZE,"0x%x\n", platform_data->fw_version);
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", platform_data->fw_version);
 }
 
-static ssize_t pause_fw_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t pause_fw_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	int err = 0;
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 
 	mutex_lock(&platform_data->ene_mutex);
 
@@ -527,13 +554,15 @@ static ssize_t pause_fw_show(struct device *dev, struct device_attribute *attr,c
 	printk("[ENE_DT] REG[0x8070] : 0x%x\n", data[0]);
 	mutex_unlock(&platform_data->ene_mutex);
 
-	return snprintf(buf, PAGE_SIZE,"0x%x\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", data[0]);
 }
 
-static ssize_t pause_fw_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pause_fw_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	u32 val;
 	int err;
 	ssize_t ret;
@@ -544,13 +573,13 @@ static ssize_t pause_fw_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&platform_data->ene_mutex);
 
-	if(val>0) {
+	if (val > 0) {
 		err = ene_8k41_write_bytes(client, 0x8070, 0xA0);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
-	}else {
+	} else {
 		err = ene_8k41_write_bytes(client, 0x8070, 0xA1);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 	}
 
@@ -558,12 +587,14 @@ static ssize_t pause_fw_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t pd_switch_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t pd_switch_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	int err = 0;
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 
 	mutex_lock(&platform_data->ene_mutex);
 
@@ -575,16 +606,19 @@ static ssize_t pd_switch_show(struct device *dev, struct device_attribute *attr,
 	printk("[ENE_DT] REG[0x8061] : 0x%x\n", data[0]);
 	mutex_unlock(&platform_data->ene_mutex);
 
-	return snprintf(buf, PAGE_SIZE,"0x%x\n", data[0]);
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", data[0]);
 }
 
-static ssize_t pd_switch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t pd_switch_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	u32 val, retry = 0;
 	int err;
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 	ssize_t ret;
 
 	ret = kstrtou32(buf, 10, &val);
@@ -593,20 +627,22 @@ static ssize_t pd_switch_store(struct device *dev, struct device_attribute *attr
 
 	mutex_lock(&platform_data->ene_mutex);
 
-	if(val>0) {
+	if (val > 0) {
 		printk("[ENE_DT] PD switch to flash mode\n");
 
 		err = ene_8k41_write_bytes(client, 0x8060, 0xA5);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] REG[0x8060]: write err %d\n", err);
 
-		while(retry < 5){
+		while (retry < 5) {
 			err = ene_8k41_read_bytes(client, 0x8061, data);
 			if (err != 2)
-				printk("[ENE_DT] REG[0x8061]: read err %d\n", err);
+				printk("[ENE_DT] REG[0x8061]: read err %d\n",
+				       err);
 
-			if (data[0] == 0x5A){
-				printk("[ENE_DT] REG[0x8061] : 0x%x\n", data[0]);
+			if (data[0] == 0x5A) {
+				printk("[ENE_DT] REG[0x8061] : 0x%x\n",
+				       data[0]);
 				break;
 			}
 
@@ -623,24 +659,26 @@ static ssize_t pd_switch_store(struct device *dev, struct device_attribute *attr
 
 		printk("[ENE_DT] REG[0x8070] : 0x%x\n", data[0]);
 
-	}else {
+	} else {
 		printk("[ENE_DT] PD switch to normal mode\n");
 
 		err = ene_8k41_write_bytes(client, 0x8060, 0x0);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] REG[0x8060]: write err %d\n", err);
 
 		err = ene_8k41_write_bytes(client, 0x8070, 0x0);
-		if (err !=1)
+		if (err != 1)
 			printk("[ENE_DT] REG[0x8070]: write err %d\n", err);
 
-		while(retry < 5){
+		while (retry < 5) {
 			err = ene_8k41_read_bytes(client, 0x8061, data);
 			if (err != 2)
-				printk("[ENE_DT] REG[0x8061]: read err %d\n", err);
+				printk("[ENE_DT] REG[0x8061]: read err %d\n",
+				       err);
 
-			if (data[0] == 0x0){
-				printk("[ENE_DT] REG[0x8061] : 0x%x\n", data[0]);
+			if (data[0] == 0x0) {
+				printk("[ENE_DT] REG[0x8061] : 0x%x\n",
+				       data[0]);
 				break;
 			}
 
@@ -652,13 +690,15 @@ static ssize_t pd_switch_store(struct device *dev, struct device_attribute *attr
 		data[0] = 0xFF;
 		retry = 0;
 
-		while(retry < 5){
+		while (retry < 5) {
 			err = ene_8k41_read_bytes(client, 0x8070, data);
 			if (err != 2)
-				printk("[ENE_DT] REG[0x8070]: read err %d\n", err);
+				printk("[ENE_DT] REG[0x8070]: read err %d\n",
+				       err);
 
-			if (data[0] == 0x0){
-				printk("[ENE_DT] REG[0x8070] : 0x%x\n", data[0]);
+			if (data[0] == 0x0) {
+				printk("[ENE_DT] REG[0x8070] : 0x%x\n",
+				       data[0]);
 				break;
 			}
 			printk("[ENE_DT] REG[0x8070] : 0x%x\n", data[0]);
@@ -671,10 +711,11 @@ static ssize_t pd_switch_store(struct device *dev, struct device_attribute *attr
 	return count;
 }
 
-static ssize_t Check_AC_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t Check_AC_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[4] = {0};
+	unsigned char data[4] = { 0 };
 	int err = 0, result = 0;
 
 	mutex_lock(&g_pdata->ene_mutex);
@@ -683,52 +724,56 @@ static ssize_t Check_AC_show(struct device *dev, struct device_attribute *attr,c
 	if (err != 2)
 		printk("[ENE_DT] REG[0x8050]: read err %d\n", err);
 
-	if ( (data[0] >> 4) & 0x1){
+	if ((data[0] >> 4) & 0x1) {
 		printk("[ENE_DT] AC is more than 30W\n");
 		result = 1;
-	} else{
+	} else {
 		printk("[ENE_DT] AC is less than 30W\n");
 		result = 0;
 	}
 
 	err = ene_8k41_read_bytes(client, 0xF018, data);
-	if (err != 2){
+	if (err != 2) {
 		printk("[ENE_DT] FW check err %d\n", err);
 		result = 1;
 		mutex_unlock(&g_pdata->ene_mutex);
-		return snprintf(buf, PAGE_SIZE,"%d\n", result);
+		return snprintf(buf, PAGE_SIZE, "%d\n", result);
 	}
 
-
-	if (data[0] != 0x0){
-		printk("[ENE_DT] FW Error, REG[0xF018] : 0x%x, force return AC is 30W, let FW can recovery\n", data[0]);
+	if (data[0] != 0x0) {
+		printk("[ENE_DT] FW Error, REG[0xF018] : 0x%x, force return AC is 30W, let FW can recovery\n",
+		       data[0]);
 		result = 1;
 	}
 
 	mutex_unlock(&g_pdata->ene_mutex);
 
-	return snprintf(buf, PAGE_SIZE,"%d\n", result);
+	return snprintf(buf, PAGE_SIZE, "%d\n", result);
 }
 
-static ssize_t mode_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 	int val = -1;
 
-	if ( gpio_is_valid(platform_data->switch_mode_gpio) ) {
+	if (gpio_is_valid(platform_data->switch_mode_gpio)) {
 		val = gpio_get_value(platform_data->switch_mode_gpio);
-		printk("[ENE_DT] switch_mode_gpio[%d] :0x%x\n", platform_data->switch_mode_gpio, val);
-		return snprintf(buf, PAGE_SIZE,"%d\n", val);
+		printk("[ENE_DT] switch_mode_gpio[%d] :0x%x\n",
+		       platform_data->switch_mode_gpio, val);
+		return snprintf(buf, PAGE_SIZE, "%d\n", val);
 	}
 	printk("[ENE_DT] switch_mode_gpio is invalid, return -1\n");
-	return snprintf(buf, PAGE_SIZE,"%d\n", val);
+	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
-static ssize_t test_pin_show(struct device *dev, struct device_attribute *attr,char *buf)
+static ssize_t test_pin_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 	int err = 0;
 
 	err = ene_8k41_read_bytes(client, 0xF208, data);
@@ -737,13 +782,14 @@ static ssize_t test_pin_show(struct device *dev, struct device_attribute *attr,c
 
 	printk("[ENE_DT] REG[0xF208] 0x%x\n", data[0]);
 
-	return snprintf(buf, PAGE_SIZE,"0x%x\n", ((data[0] >> 4) & 0x1));
+	return snprintf(buf, PAGE_SIZE, "0x%x\n", ((data[0] >> 4) & 0x1));
 }
 
-static ssize_t test_pin_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t test_pin_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev->parent);
-	unsigned char data[2] = {0};
+	unsigned char data[2] = { 0 };
 	u32 val;
 	ssize_t ret;
 	int err = 0;
@@ -758,7 +804,7 @@ static ssize_t test_pin_store(struct device *dev, struct device_attribute *attr,
 	//	printk("[ENE_DT] ene_8k41_write_bytes:err %d\n", err);
 
 	//pr_debug("[ENE_DT] %s val= %d\n", __func__,val);
-	if(val>0) {
+	if (val > 0) {
 		err = ene_8k41_read_bytes(client, 0xF208, data);
 		if (err < 0)
 			printk("[ENE_DT] ene_8k41_read_bytes:err %d\n", err);
@@ -769,7 +815,7 @@ static ssize_t test_pin_store(struct device *dev, struct device_attribute *attr,
 		err = ene_8k41_write_bytes(client, 0xF208, data[0]);
 		if (err < 0)
 			printk("[ENE_DT] ene_8k41_write_bytes:err %d\n", err);
-	}else {
+	} else {
 		err = ene_8k41_read_bytes(client, 0xF208, data);
 		if (err < 0)
 			printk("[ENE_DT] ene_8k41_read_bytes:err %d\n", err);
@@ -793,23 +839,18 @@ static DEVICE_ATTR(mode, 0664, mode_show, NULL);
 static DEVICE_ATTR(test_pin, 0664, test_pin_show, test_pin_store);
 
 static struct attribute *pwm_attrs[] = {
-	&dev_attr_fw_update.attr,
-	&dev_attr_fw_ver.attr,
-	&dev_attr_pause.attr,
-	&dev_attr_pd_switch.attr,
-	&dev_attr_Check_AC.attr,
-	&dev_attr_mode.attr,
-	&dev_attr_test_pin.attr,
-	NULL
+	&dev_attr_fw_update.attr, &dev_attr_fw_ver.attr,
+	&dev_attr_pause.attr,	  &dev_attr_pd_switch.attr,
+	&dev_attr_Check_AC.attr,  &dev_attr_mode.attr,
+	&dev_attr_test_pin.attr,  NULL
 };
 
 static const struct attribute_group pwm_attr_group = {
 	.attrs = pwm_attrs,
 };
 
-
 static void aura_sync_set(struct led_classdev *led,
-			      enum led_brightness brightness)
+			  enum led_brightness brightness)
 {
 	printk("[ENE_DT] aura_sync_set : %d.\n", brightness);
 }
@@ -824,7 +865,8 @@ static enum led_brightness aura_sync_get(struct led_classdev *led_cdev)
 	return pdata->led.brightness;
 }
 
-static int aura_sync_register(struct device *dev, struct ene_8k41_platform_data *pdata)
+static int aura_sync_register(struct device *dev,
+			      struct ene_8k41_platform_data *pdata)
 {
 	pdata->led.name = "DT_power";
 
@@ -842,71 +884,79 @@ static void aura_sync_unregister(struct ene_8k41_platform_data *pdata)
 	led_classdev_unregister(&pdata->led);
 }
 
-static int ene_8k41_parse_dt(struct device *dev, struct ene_8k41_platform_data *pdata)
+static int ene_8k41_parse_dt(struct device *dev,
+			     struct ene_8k41_platform_data *pdata)
 {
 	struct device_node *np = dev->of_node;
 	int retval = 0;
 
 	printk("[ENE_DT] ene_8k41_parse_dt\n");
 
-	pdata->switch_mode_gpio = of_get_named_gpio_flags(np, "ene8k41,switch-mode-gpio", 0, &pdata->switch_mode_flags);
+	pdata->switch_mode_gpio = of_get_named_gpio_flags(
+		np, "ene8k41,switch-mode-gpio", 0, &pdata->switch_mode_flags);
 	printk("[ENE_DT] switch_mode_gpio : %d\n", pdata->switch_mode_gpio);
 
 	// Get the pinctrl node
 	pdata->pinctrl = devm_pinctrl_get(dev);
 	if (IS_ERR_OR_NULL(pdata->pinctrl)) {
-	     dev_err(dev, "%s: Failed to get pinctrl\n", __func__);
-	     return 0;
+		dev_err(dev, "%s: Failed to get pinctrl\n", __func__);
+		return 0;
 	}
 
 	printk("[ENE_DT] Get default state\n");
 	pdata->pins_default = pinctrl_lookup_state(pdata->pinctrl, "default");
 	if (IS_ERR_OR_NULL(pdata->pins_default)) {
-		dev_err(dev, "%s: Failed to get pinctrl state default\n", __func__);
+		dev_err(dev, "%s: Failed to get pinctrl state default\n",
+			__func__);
 	}
 	printk("[ENE_DT] set the default state\n");
 	retval = pinctrl_select_state(pdata->pinctrl, pdata->pins_default);
 	if (retval)
-		dev_err(dev, "%s: pinctrl_select_state retval:%d\n", __func__, retval);
+		dev_err(dev, "%s: pinctrl_select_state retval:%d\n", __func__,
+			retval);
 
 	return 0;
 }
 
-static int ene_8k41_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int ene_8k41_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	int err = 0;
 	struct ene_8k41_platform_data *platform_data;
-	
+
 	printk("[ENE_DT] ene_8k41_probe.\n");
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		err = -ENODEV;
-	goto exit_check_functionality_failed;
+		goto exit_check_functionality_failed;
 	} else
 		printk("[ENE_DT] I2C function test pass\n");
 
 	printk("[ENE_DT] client->addr : 0x%x\n", client->addr);
 	if (client->addr != 0x40) {
 		client->addr = 0x40;
-		printk("[ENE_DT] Force Change client->addr : 0x%x\n", client->addr);
+		printk("[ENE_DT] Force Change client->addr : 0x%x\n",
+		       client->addr);
 	}
 	//printk("[ENE_DT] check data[0]: 0x%x\n", data[0]);
 
-	platform_data = devm_kzalloc(&client->dev, sizeof(struct ene_8k41_platform_data), GFP_KERNEL);
+	platform_data =
+		devm_kzalloc(&client->dev,
+			     sizeof(struct ene_8k41_platform_data), GFP_KERNEL);
 	if (!platform_data) {
 		dev_err(&client->dev, "Failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
 	i2c_set_clientdata(client, platform_data);
-// Parse platform data from dtsi
+	// Parse platform data from dtsi
 	err = ene_8k41_parse_dt(&client->dev, platform_data);
 	if (err) {
 		printk("[ENE_DT] ene_8k41_parse_dt get fail !!!\n");
 		return -ENOMEM;
 	}
 
-// Check FW
+	// Check FW
 	platform_data->fw_version = ene_CheckFirmwareVer(client);
 	printk("[ENE_DT] FW VER : 0x%x\n", platform_data->fw_version);
 
@@ -915,18 +965,19 @@ static int ene_8k41_probe(struct i2c_client *client, const struct i2c_device_id 
 		printk("[ENE_DT] Failed to register LED device: %d\n", err);
 		goto unled;
 	}
-	err = sysfs_create_group(&platform_data->led.dev->kobj, &pwm_attr_group);
+	err = sysfs_create_group(&platform_data->led.dev->kobj,
+				 &pwm_attr_group);
 	if (err)
-			goto unled;
+		goto unled;
 
 	mutex_init(&platform_data->ene_mutex);
 
 	platform_data->FW_update_done = false;
-// Set global variable
+	// Set global variable
 	g_pdata = platform_data;
 
 	err = ene_8k41_write_bytes(client, 0x8070, 0xA1);
-	if (err !=1)
+	if (err != 1)
 		printk("[ENE_DT] REG[0xF807]: write err %d\n", err);
 
 	printk("[ENE_DT] ene_8k41_probe done.\n");
@@ -944,9 +995,10 @@ exit_check_functionality_failed:
 static int ene_8k41_remove(struct i2c_client *client)
 {
 	int err = 0;
-	struct ene_8k41_platform_data *platform_data = i2c_get_clientdata(client);
+	struct ene_8k41_platform_data *platform_data =
+		i2c_get_clientdata(client);
 
-// unregister
+	// unregister
 	printk("[ENE_DT] sysfs_remove_group\n");
 	sysfs_remove_group(&platform_data->led.dev->kobj, &pwm_attr_group);
 
@@ -962,7 +1014,7 @@ int ene_8k41_dt_suspend(struct device *dev)
 {
 	int err = 0;
 
-//	printk("[ENE_DT] ene_8k41_dt_suspend.\n");
+	//	printk("[ENE_DT] ene_8k41_dt_suspend.\n");
 
 	return err;
 }
@@ -971,26 +1023,28 @@ int ene_8k41_dt_resume(struct device *dev)
 {
 	int err = 0;
 
-//	printk("[ENE_DT] ene_8k41_dt_resume.\n");
+	//	printk("[ENE_DT] ene_8k41_dt_resume.\n");
 
 	return err;
 }
 
 static const struct i2c_device_id ene_8k41_id[] = {
-	{ "ene_8k41_i2c", 0},
+	{ "ene_8k41_i2c", 0 },
 	{},
 };
 //MODULE_DEVICE_TABLE(i2c, ene_8k41_id);
 
 static const struct dev_pm_ops ene_8k41_pm_ops = {
-	.suspend	= ene_8k41_dt_suspend,
-	.resume	= ene_8k41_dt_resume,
+	.suspend = ene_8k41_dt_suspend,
+	.resume = ene_8k41_dt_resume,
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id ene_match_table[] = {
-	{ .compatible = "ene8k41_power",},
-	{ },
+	{
+		.compatible = "ene8k41_power",
+	},
+	{},
 };
 #else
 #define ene_match_table NULL
@@ -1017,7 +1071,7 @@ static int __init ene_8k41_bus_init(void)
 		printk("[ENE_DT] ENE 8k41 driver int failed.\n");
 	else
 		printk("[ENE_DT] ENE 8k41 driver int success.\n");
-	
+
 	return ret;
 }
 module_init(ene_8k41_bus_init);

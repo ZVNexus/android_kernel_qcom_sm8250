@@ -16,15 +16,14 @@
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRV_NAME		"asustek_lid"
-#define LID_DEVICE_NAME		"lid_input"
-#define LID_PHYS		"/dev/input/lid_indev"
-#define CONVERSION_TIME_MS	50
+#define DRV_NAME "asustek_lid"
+#define LID_DEVICE_NAME "lid_input"
+#define LID_PHYS "/dev/input/lid_indev"
+#define CONVERSION_TIME_MS 50
 
 static void lid_report_function(struct work_struct *work);
 static ssize_t show_lid_status(struct device *dev,
-		struct device_attribute *attr, char *buf);
-
+			       struct device_attribute *attr, char *buf);
 
 // Export lid status for other driver
 int lid_status;
@@ -44,22 +43,19 @@ struct asustek_lid_drvdata {
 
 static DEVICE_ATTR(lid_status, S_IRUGO, show_lid_status, NULL);
 
-static struct attribute *lid_attrs[] = {
-	&dev_attr_lid_status.attr,
-	NULL
-};
+static struct attribute *lid_attrs[] = { &dev_attr_lid_status.attr, NULL };
 
 static struct attribute_group lid_attr_group = {
 	.attrs = lid_attrs,
 };
 
 static ssize_t show_lid_status(struct device *dev,
-		struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct asustek_lid_drvdata *ddata = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			!!gpio_get_value_cansleep(ddata->gpio));
+			 !!gpio_get_value_cansleep(ddata->gpio));
 }
 
 static irqreturn_t lid_interrupt_handler(int irq, void *dev_id)
@@ -69,7 +65,7 @@ static irqreturn_t lid_interrupt_handler(int irq, void *dev_id)
 	WARN_ONCE(irq != ddata->irq, "lid_interrupt failed\n");
 
 	schedule_delayed_work(&ddata->dwork,
-			msecs_to_jiffies(CONVERSION_TIME_MS));
+			      msecs_to_jiffies(CONVERSION_TIME_MS));
 
 	return IRQ_HANDLED;
 }
@@ -77,7 +73,8 @@ static irqreturn_t lid_interrupt_handler(int irq, void *dev_id)
 //TODO for DP function
 /* ASUS BSP DP +++ */
 extern void asus_dp_change_state(bool mode, int type);
-extern int hid_to_set_station_cover_state(u8 type); // ASUS_BSP Deeo : add for ACCY EC driver
+extern int hid_to_set_station_cover_state(
+	u8 type); // ASUS_BSP Deeo : add for ACCY EC driver
 static void lid_report_function(struct work_struct *work)
 {
 	struct asustek_lid_drvdata *ddata =
@@ -86,14 +83,14 @@ static void lid_report_function(struct work_struct *work)
 
 	value = !!gpio_get_value_cansleep(ddata->gpio) ^ ddata->active_low;
 
-//TODO for DP function
+	//TODO for DP function
 	/* ASUS BSP DP +++ */
-	if(value) {	//LID close, value=1
-	    asus_dp_change_state(false, 0);
-	    hid_to_set_station_cover_state(1);
-	}else {		//LID open, value=0
-	    asus_dp_change_state(true, 0);
-	    hid_to_set_station_cover_state(0);
+	if (value) { //LID close, value=1
+		asus_dp_change_state(false, 0);
+		hid_to_set_station_cover_state(1);
+	} else { //LID open, value=0
+		asus_dp_change_state(true, 0);
+		hid_to_set_station_cover_state(0);
 	}
 	/* ASUS BSP DP --- */
 
@@ -104,7 +101,7 @@ static void lid_report_function(struct work_struct *work)
 	//bat_get_hal_sensor_status(value);//Notify the status of hall-sensor to charger
 	lid_status = value;
 
-	pr_info("[ASUS_LID] %s : SW_LID report value = %d\n",  __func__, value);
+	pr_info("[ASUS_LID] %s : SW_LID report value = %d\n", __func__, value);
 }
 
 /* translate openfirmware node properties */
@@ -121,7 +118,7 @@ static int __init asustek_lid_get_devtree(struct device *dev)
 
 	if (!of_find_property(node, "gpios", NULL)) {
 		static const char dt_get_err[] __initconst =
-					"lid sensor without gpios\n";
+			"lid sensor without gpios\n";
 		dev_err(dev, dt_get_err);
 		return -EINVAL;
 	}
@@ -134,7 +131,7 @@ static int __init asustek_lid_get_devtree(struct device *dev)
 }
 
 static int asustek_lid_pinctrl_configure(struct pinctrl *key_pinctrl,
-								bool active)
+					 bool active)
 {
 	struct pinctrl_state *set_state;
 
@@ -142,15 +139,15 @@ static int asustek_lid_pinctrl_configure(struct pinctrl *key_pinctrl,
 
 	printk("[ASUS_LID] %s \n", __func__);
 	if (active) {
-		set_state = pinctrl_lookup_state(key_pinctrl,
-						"asustek_lid_active");
+		set_state =
+			pinctrl_lookup_state(key_pinctrl, "asustek_lid_active");
 		if (IS_ERR(set_state)) {
 			pr_err("Can't get asustek_lid pinctrl active state\n");
 			return PTR_ERR(set_state);
 		}
 	} else {
 		set_state = pinctrl_lookup_state(key_pinctrl,
-						"asustek_lid_suspend");
+						 "asustek_lid_suspend");
 		if (IS_ERR(set_state)) {
 			pr_err("Can't get asustek_lid pinctrl sleep state\n");
 			return PTR_ERR(set_state);
@@ -182,11 +179,11 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	dev_info(dev, lid_probe, __func__);
 
 	ddata = devm_kzalloc(dev, sizeof(struct asustek_lid_drvdata),
-							GFP_KERNEL);
+			     GFP_KERNEL);
 	input = devm_input_allocate_device(dev);
 	if (!ddata || !input) {
 		static const char errmsg[] __initconst =
-					"Failed to allocate state\n";
+			"Failed to allocate state\n";
 		dev_err(dev, errmsg);
 		return -ENOMEM;
 	}
@@ -223,7 +220,7 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	ret = input_register_device(input);
 	if (ret) {
 		static const char errmsg[] __initconst =
-				"Unable to register input device, error: %d\n";
+			"Unable to register input device, error: %d\n";
 		dev_err(dev, errmsg, ret);
 		return ret;
 	}
@@ -232,7 +229,7 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	ret = sysfs_create_group(&pdev->dev.kobj, &lid_attr_group);
 	if (ret) {
 		static const char errmsg[] __initconst =
-				"Unable to create sysfs, error: %d\n";
+			"Unable to create sysfs, error: %d\n";
 		dev_err(dev, errmsg, ret);
 		return ret;
 	}
@@ -243,8 +240,7 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	asustek_lid_get_devtree(dev);
 
 	if (!gpio_is_valid(ddata->gpio)) {
-		static const char errmsg[] __initconst =
-					"Invalid GPIO %d\n";
+		static const char errmsg[] __initconst = "Invalid GPIO %d\n";
 		dev_err(dev, errmsg, ddata->gpio);
 		goto fail_remove_group;
 	}
@@ -252,7 +248,7 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	ret = devm_gpio_request(dev, ddata->gpio, DRV_NAME);
 	if (ret < 0) {
 		static const char errmsg[] __initconst =
-				"Failed to request GPIO %d\n";
+			"Failed to request GPIO %d\n";
 		dev_err(dev, errmsg, ddata->gpio);
 		goto fail_remove_group;
 	}
@@ -261,7 +257,7 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	ret = gpio_direction_input(ddata->gpio);
 	if (ret < 0) {
 		static const char errmsg[] __initconst =
-				"Failed to configure direction for GPIO %d\n";
+			"Failed to configure direction for GPIO %d\n";
 		dev_err(dev, errmsg, ddata->gpio);
 		goto fail_remove_group;
 	}
@@ -270,17 +266,18 @@ static int __init lid_driver_probe(struct platform_device *pdev)
 	ddata->irq = irq;
 	if (irq < 0) {
 		static const char errmsg[] __initconst =
-				"Unable to get irq number for GPIO %d\n";
+			"Unable to get irq number for GPIO %d\n";
 		dev_err(dev, errmsg, ddata->gpio);
 		goto fail_remove_group;
 	}
 
 	ret = devm_request_any_context_irq(dev, irq, lid_interrupt_handler,
-			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			"asustek_lid_isr", ddata);
+					   IRQF_TRIGGER_RISING |
+						   IRQF_TRIGGER_FALLING,
+					   "asustek_lid_isr", ddata);
 	if (ret < 0) {
 		static const char errmsg[] __initconst =
-				"Unable to claim irq %d\n";
+			"Unable to claim irq %d\n";
 		dev_err(dev, errmsg, irq);
 		goto fail_remove_group;
 	}
@@ -322,7 +319,9 @@ static int lid_driver_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id asustek_lid_of_match[] = {
-	{ .compatible = DRV_NAME, },
+	{
+		.compatible = DRV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, gpio_keys_of_match);

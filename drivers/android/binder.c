@@ -80,12 +80,6 @@
 #include "binder_alloc.h"
 #include "binder_trace.h"
 
-#ifdef CONFIG_CGF_NOTIFY_EVENT
-#include <linux/cgroup.h>
-#include <linux/notifier.h>
-
-#endif
-
 static HLIST_HEAD(binder_deferred_list);
 static DEFINE_MUTEX(binder_deferred_lock);
 
@@ -3022,9 +3016,7 @@ static void binder_transaction(struct binder_proc *proc,
 	int t_debug_id = atomic_inc_return(&binder_last_id);
 	char *secctx = NULL;
 	u32 secctx_sz = 0;
-/*#ifdef CONFIG_CGF_NOTIFY_EVENT
-	struct cgf_event event;
-#endif*/
+
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->debug_id = t_debug_id;
 	e->call_type = reply ? 2 : !!(tr->flags & TF_ONE_WAY);
@@ -3034,7 +3026,6 @@ static void binder_transaction(struct binder_proc *proc,
 	e->data_size = tr->data_size;
 	e->offsets_size = tr->offsets_size;
 	e->context_name = proc->context->name;
-
 
 	if (reply) {
 		binder_inner_proc_lock(proc);
@@ -3233,23 +3224,6 @@ static void binder_transaction(struct binder_proc *proc,
 		t->from = thread;
 	else
 		t->from = NULL;
-
-/*#ifdef CONFIG_CGF_NOTIFY_EVENT
-	//	struct cgf_event event;
-	if (frozen(target_proc->tsk) || freezing(target_proc->tsk)){
-		event.type = 0;
-		event.info = target_proc->tsk->signal;
-		event.data = target_proc->tsk;
-		//printk(KERN_ERR"[CGF] %s, target_proc->tsk->pid: %d\n", __func__, target_proc->tsk->pid);
-		cgf_notifier_call_chain(0, &event);
-        //event.type = 1;
-		//event.info = target_thread->task->signal;
-		//event.data = target_thread->task;
-		//printk(KERN_ERR"[CGF] %s, target_proc->tsk->pid: %d\n", __func__, target_proc->tsk->pid);
-		//cgf_notifier_call_chain(0, &event);		
-	}
-#endif	*/
-
 
 	t->sender_euid = task_euid(proc->tsk);
 	t->to_proc = target_proc;
@@ -3458,7 +3432,7 @@ static void binder_transaction(struct binder_proc *proc,
 			binder_size_t parent_offset;
 			struct binder_fd_array_object *fda =
 				to_binder_fd_array_object(hdr);
-			size_t num_valid = (buffer_offset - off_start_offset) /
+			size_t num_valid = (buffer_offset - off_start_offset) *
 						sizeof(binder_size_t);
 			struct binder_buffer_object *parent =
 				binder_validate_ptr(target_proc, t->buffer,
@@ -3532,7 +3506,7 @@ static void binder_transaction(struct binder_proc *proc,
 				t->buffer->user_data + sg_buf_offset;
 			sg_buf_offset += ALIGN(bp->length, sizeof(u64));
 
-			num_valid = (buffer_offset - off_start_offset) /
+			num_valid = (buffer_offset - off_start_offset) *
 					sizeof(binder_size_t);
 			ret = binder_fixup_parent(t, thread, bp,
 						  off_start_offset,

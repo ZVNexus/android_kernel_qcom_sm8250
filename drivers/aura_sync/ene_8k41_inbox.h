@@ -47,13 +47,13 @@ struct ene_8k41_platform_data {
 	struct notifier_block notifier;
 
 	//struct device dev;;
-	struct led_classdev led;	/* LED control */
+	struct led_classdev led; /* LED control */
 	char led_name[32];
 
-// For emulated FW pattern
+	// For emulated FW pattern
 	//struct delayed_work
-	struct workqueue_struct		*workqueue;
-	struct work_struct			aura_work;
+	struct workqueue_struct *workqueue;
+	struct work_struct aura_work;
 
 	struct i2c_client *client;
 

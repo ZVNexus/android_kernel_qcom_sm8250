@@ -1,4 +1,4 @@
-#include <linux/fcntl.h> 
+#include <linux/fcntl.h>
 //#include <stdio.h>
 //#include <stdlib.h>
 #include <linux/unistd.h>
@@ -31,12 +31,11 @@ static bool drm_registered;
 //For HID wait for completion
 #include <linux/completion.h>
 
-#define	CLASS_NAME		    "ec_hid"
-#define	TEST_STRING		    "ROG_DONGLE"
+#define CLASS_NAME "ec_hid"
+#define TEST_STRING "ROG_DONGLE"
 //#define HID_PATCH			"/dev/hidraw0"
 
-enum asus_dongle_type
-{
+enum asus_dongle_type {
 	Dongle_NO_INSERT = 0,
 	Dongle_INBOX3,
 	Dongle_Station2,
@@ -55,8 +54,7 @@ enum asus_dongle_type
  * 	2 	: Low Battery mode
  * 	3 	: ShutDown & Virtual remove mode
  */
-enum asus_DongleEvent_type
-{
+enum asus_DongleEvent_type {
 	DongleEvent_Normal_mode = 0,
 	DongleEvent_Upgrade_mode,
 	DongleEvent_LowBattery_mode,
@@ -93,7 +91,7 @@ EXPORT_SYMBOL(station_touch_recovery);
 struct ec_hid_data {
 	dev_t devt;
 	struct device *dev;
-	
+
 	uint8_t previous_event;
 
 	u8 fw_version;
@@ -114,10 +112,11 @@ struct ec_hid_data {
 	struct semaphore pogo_sema;
 	struct mutex pogo_id_mutex;
 
-	struct notifier_block display_notifier;  //For drm panel notify
+	struct notifier_block display_notifier; //For drm panel notify
 };
 
-void hid_switch_usb_autosuspend(bool flag){
+void hid_switch_usb_autosuspend(bool flag)
+{
 	struct hid_device *hdev;
 	struct usb_interface *intf;
 
@@ -130,9 +129,9 @@ void hid_switch_usb_autosuspend(bool flag){
 	intf = to_usb_interface(hdev->dev.parent);
 
 	printk("[EC_HID] hid_swithc_usb_autosuspend %d\n", flag);
-	if(flag) {
+	if (flag) {
 		usb_enable_autosuspend(interface_to_usbdev(intf));
-	}else {
+	} else {
 		usb_disable_autosuspend(interface_to_usbdev(intf));
 	}
 
