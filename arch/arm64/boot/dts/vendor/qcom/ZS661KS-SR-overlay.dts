@@ -2,7 +2,6 @@
 /plugin/;
 
 #include "ZS661KS-EVB-overlay.dts"
-#include "camera/zs661ks-sr-camera-sensor-mtp.dtsi"
 #include <dt-bindings/phy/qcom,kona-qmp-usb3.h>
 
 #include "dsi-panel-asus-r66451-fhd-dsc-cmd-dim-er2.dtsi"
