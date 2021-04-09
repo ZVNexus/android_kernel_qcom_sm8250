@@ -61,7 +61,7 @@
 #define GOODIX_PID_MAX_LEN		8
 #define GOODIX_VID_MAX_LEN		8
 
-#define GOODIX_DEFAULT_CFG_NAME		"goodix_config.cfg"
+#define GOODIX_DEFAULT_CFG_NAME		"goodix_9896_config.cfg"
 
 #define IC_TYPE_NONE			0
 #define IC_TYPE_NORMANDY		1
