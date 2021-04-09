@@ -885,4 +885,7 @@ config INPUT_SC27XX_VIBRA
 	  To compile this driver as a module, choose M here. The module will
 	  be called sc27xx_vibra.
 
+config INPUT_AW8697_VIBRATOR
+	tristate "Awinic AW8697 vibrator support"
+
 endif
