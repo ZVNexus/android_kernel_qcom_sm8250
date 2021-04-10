@@ -11,6 +11,7 @@
 
 #include "kona-mtp.dtsi"
 #include "obiwan-battery.dtsi"
+#include "obiwan-display.dtsi"
 
 / {
 	model = "ROG Phone 3";
