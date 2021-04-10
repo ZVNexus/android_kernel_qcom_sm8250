@@ -254,7 +254,6 @@
 
 	pcie1: qcom,pcie@1c08000 {
 		compatible = "qcom,pci-msm";
-		status = "disabled";
 
 		reg = <0x01c08000 0x3000>,
 			<0x01c0e000 0x2000>,
@@ -285,7 +284,7 @@
 				0 0 0 4 &intc GIC_SPI 439 IRQ_TYPE_LEVEL_HIGH>;
 		msi-parent = <&pcie1_msi>;
 
-		//perst-gpio = <&tlmm 82 0>;    remove by ASUS design
+		perst-gpio = <&tlmm 82 0>;
 		wake-gpio = <&tlmm 84 0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie1_clkreq_default

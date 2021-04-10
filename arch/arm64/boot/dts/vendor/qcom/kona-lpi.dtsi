@@ -49,7 +49,7 @@
 
 				config {
 					pins = "gpio0";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -79,7 +79,7 @@
 
 				config {
 					pins = "gpio1";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -109,7 +109,7 @@
 
 				config {
 					pins = "gpio2";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -139,7 +139,7 @@
 
 				config {
 					pins = "gpio3";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -169,7 +169,7 @@
 
 				config {
 					pins = "gpio4";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -199,7 +199,7 @@
 
 				config {
 					pins = "gpio5";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -229,7 +229,7 @@
 
 				config {
 					pins = "gpio6";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -259,7 +259,7 @@
 
 				config {
 					pins = "gpio7";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -289,7 +289,7 @@
 
 				config {
 					pins = "gpio8";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};
@@ -319,7 +319,7 @@
 
 				config {
 					pins = "gpio9";
-					drive-strength = <2>;   /* 8 mA */
+					drive-strength = <8>;   /* 8 mA */
 					bias-disable;           /* NO PULL */
 					output-high;
 				};

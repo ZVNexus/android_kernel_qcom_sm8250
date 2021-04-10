@@ -368,14 +368,6 @@
 		qcom,pre-scaling = <1 3>;
 	};
 
-	BTM_CON_TEMP_ALT_ADC@52 {
-		reg = <ADC_GPIO1_PU2>;
-		label = "BTM_CON_TEMP_ALT_ADC";
-		qcom,ratiometric;
-		qcom,hw-settle-time = <200>;
-		qcom,pre-scaling = <1 1>;
-	};
-	
 	camera_flash_therm@4d {
 		reg = <ADC_AMUX_THM1_PU2>;
 		label = "camera_flash_therm";
@@ -392,9 +384,9 @@
 		qcom,pre-scaling = <1 1>;
 	};
 
-	SIDE_CON_TEMP_ALT_ADC@4f {
+	pa_therm2@4f {
 		reg = <ADC_AMUX_THM3_PU2>;
-		label = "SIDE_CON_TEMP_ALT_ADC";
+		label = "pa_therm2";
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
 		qcom,pre-scaling = <1 1>;
@@ -590,7 +582,7 @@
 
 	skin-therm-usr {
 		polling-delay-passive = <0>;
-		polling-delay = <1000>;
+		polling-delay = <0>;
 		thermal-governor = "user_space";
 		thermal-sensors = <&pm8150_adc_tm ADC_AMUX_THM1_PU2>;
 		wake-capable-sensor;
@@ -632,7 +624,7 @@
 			};
 		};
 	};
-	
+
 	skin-msm-therm-usr {
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
