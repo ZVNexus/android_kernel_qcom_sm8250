@@ -453,6 +453,7 @@ static const u32 hdd_sta_akm_suites[] = {
 	WLAN_AKM_SUITE_FT_FILS_SHA256,
 	WLAN_AKM_SUITE_FT_FILS_SHA384,
 	WLAN_AKM_SUITE_OWE,
+	WLAN_AKM_SUITE_DPP_RSN,
 };
 
 /*akm suits supported by AP*/
@@ -3961,6 +3962,16 @@ __wlan_hdd_cfg80211_get_features(struct wiphy *wiphy,
 	if (value)
 		wlan_hdd_cfg80211_set_feature(feature_flags,
 					  QCA_WLAN_VENDOR_FEATURE_OCE_STA_CFON);
+
+	value = false;
+	status = ucfg_mlme_get_adaptive11r_enabled(hdd_ctx->psoc, &value);
+	if (QDF_IS_STATUS_ERROR(status))
+		hdd_err("could not get FT-Adaptive 11R info");
+	if (value) {
+		hdd_debug("FT-Adaptive 11R is Enabled");
+		wlan_hdd_cfg80211_set_feature(feature_flags,
+					  QCA_WLAN_VENDOR_FEATURE_ADAPTIVE_11R);
+	}
 
 	ucfg_mlme_get_twt_requestor(hdd_ctx->psoc, &twt_req);
 	ucfg_mlme_get_twt_responder(hdd_ctx->psoc, &twt_res);
@@ -17656,6 +17667,13 @@ wlan_hdd_inform_bss_frame(struct hdd_adapter *adapter,
 		  HIGH_SEQ_NUM_OFFSET) | bss_desc->seq_ctrl.seqNumLo),
 		  bss_desc->fProbeRsp);
 
+	//ASUS_BSP+++ "add for the RSSI (value = 0) issue"
+	if( bss_data.rssi == 0 ) {
+	       hdd_info("[wlan]: wlan_hdd_cfg80211_inform_bss_frame, rssi (0 -> -9900).\n");
+	       bss_data.rssi = (-9900);
+	}
+	//ASUS_BSP--- "add for the RSSI (value = 0) issue"
+
 	bss_status = wlan_cfg80211_inform_bss_frame_data(wiphy, &bss_data);
 	hdd_ctx->beacon_probe_rsp_cnt_per_scan++;
 	qdf_mem_free(bss_data.mgmt);
@@ -21126,7 +21144,7 @@ static int __wlan_hdd_cfg80211_disconnect(struct wiphy *wiphy,
 					  false, true, vdev);
 		hdd_objmgr_put_vdev(vdev);
 
-		hdd_nofl_info("%s(vdevid-%d): Received Disconnect reason:%d %s",
+		hdd_nofl_info("[%s](vdevid-%d): Received Disconnect reason:%d %s",
 			      dev->name, adapter->vdev_id, reason,
 			      hdd_ieee80211_reason_code_to_str(reason));
 		status = wlan_hdd_disconnect(adapter, reasonCode, reason);

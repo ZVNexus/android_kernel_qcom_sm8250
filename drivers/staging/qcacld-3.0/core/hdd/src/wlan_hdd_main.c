@@ -183,6 +183,8 @@
 #include "cfg_nan_api.h"
 #include <wlan_hdd_hang_event.h>
 
+extern char* wcnss_get_driver_log_level(void);
+
 #ifdef MODULE
 #define WLAN_MODULE_NAME  module_name(THIS_MODULE)
 #else
@@ -4565,7 +4567,7 @@ static void __hdd_set_multicast_list(struct net_device *dev)
 				0, ETH_ALEN);
 			memcpy(&(mc_list_request->mc_addr[i].bytes),
 				ha->addr, ETH_ALEN);
-			hdd_debug("mlist[%d] = %pM", i,
+			hdd_err("mlist[%d] = %pM", i,
 				  mc_list_request->mc_addr[i].bytes);
 			i++;
 		}
@@ -5900,6 +5902,8 @@ struct hdd_adapter *hdd_open_adapter(struct hdd_context *hdd_ctx, uint8_t sessio
 	struct hdd_adapter *adapter = NULL;
 	u8 intf_count = 0;
 	QDF_STATUS status = QDF_STATUS_E_FAILURE;
+
+	hdd_info("[wlan]: iface(%s) type(%d)", iface_name, session_type);
 
 	if (hdd_ctx->current_intf_count >= WLAN_MAX_VDEVS) {
 		/*
@@ -10453,6 +10457,22 @@ static uint32_t hdd_log_level_to_bitmask(enum host_log_level user_log_level)
 	return bitmask;
 }
 
+static int a2i(const char *s)
+{
+  int sign=1;
+  int num=0;
+  if(*s == '-'){
+    sign = -1;
+    s++;
+  }
+  while(*s){
+    num=((*s)-'0')+num*10;
+    s++;
+  }
+  return num*sign;
+}
+
+
 /**
  * hdd_set_trace_level_for_each - Set trace level for each INI config
  * @hdd_ctx - HDD context
@@ -10468,6 +10488,9 @@ static void hdd_set_trace_level_for_each(struct hdd_context *hdd_ctx)
 	QDF_MODULE_ID module_id;
 	uint32_t bitmask;
 	uint32_t i;
+
+	char *module_idx_st = NULL;
+	char *idx = NULL;
 
 	hdd_qdf_trace_enable(QDF_MODULE_ID_DP, 0x7f);
 
@@ -10485,6 +10508,35 @@ static void hdd_set_trace_level_for_each(struct hdd_context *hdd_ctx)
 			hdd_qdf_trace_enable(module_id, bitmask);
 	}
 
+	module_idx_st = wcnss_get_driver_log_level();
+	if(!strcmp(module_idx_st,"disable") || !strcmp(module_idx_st,"")) {
+		hdd_info("no extra log level to be added");
+		goto config_cont;
+	} else if(i >= 1024) {
+		hdd_err("Number of items in %d >= Max config items %d" , i , 1024);
+		goto config_cont;
+	}
+
+	hdd_info("set driver log level: %s", module_idx_st);
+	bitmask = hdd_log_level_to_bitmask(HOST_LOG_LEVEL_DEBUG);
+
+	for(idx = strsep(&module_idx_st, ","); idx != NULL; idx = strsep(&module_idx_st, ",")) {
+
+		module_id = a2i(idx);
+		hdd_info("set driver log level: %s", idx);
+		if (module_id < QDF_MODULE_ID_MAX &&
+		    module_id >= QDF_MODULE_ID_MIN)
+			hdd_qdf_trace_enable(module_id, bitmask);
+
+		if (i++ >= 1024) {
+			hdd_err("too many ini item added",
+				WLAN_INI_FILE,
+				1024);
+			break;
+		}
+   }
+
+config_cont:
 	hdd_set_mtrace_for_each(hdd_ctx);
 }
 
