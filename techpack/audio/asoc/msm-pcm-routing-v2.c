@@ -5573,7 +5573,7 @@ static const struct soc_enum msm_route_ec_ref_params_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ec_ref_rate_text), ec_ref_rate_text),
 };
 
-static const char *const ec_ref_rx[] = { "None", "SLIM_RX", "I2S_RX",
+static const char *const ec_ref_rx[] = { "None", "SLIM_RX", "PRI_MI2S_RX",
 	"PRI_MI2S_TX", "SEC_MI2S_TX",
 	"TERT_MI2S_TX", "QUAT_MI2S_TX", "SEC_I2S_RX", "PROXY_RX",
 	"SLIM_5_RX", "SLIM_1_TX", "QUAT_TDM_TX_1",
@@ -5652,7 +5652,7 @@ static int msm_routing_ec_ref_rx_put(struct snd_kcontrol *kcontrol,
 	mutex_lock(&routing_lock);
 	msm_ec_ref_port_id = get_ec_ref_port_id(value, &msm_route_ec_ref_rx);
 	adm_ec_ref_rx_id(msm_ec_ref_port_id);
-	pr_debug("%s: msm_route_ec_ref_rx = %d\n",
+	pr_err("%s: msm_route_ec_ref_rx = %d\n",
 	    __func__, msm_route_ec_ref_rx);
 	mutex_unlock(&routing_lock);
 
@@ -23643,7 +23643,11 @@ static const char * const wsa_rx_0_vi_fb_tx_rch_mux_text[] = {
 };
 
 static const char * const mi2s_rx_vi_fb_tx_mux_text[] = {
+#ifdef CONFIG_SND_SOC_TFA9874
+	"ZERO", "PRI_MI2S_TX"
+#else
 	"ZERO", "SENARY_TX"
+#endif
 };
 
 static const char * const int4_mi2s_rx_vi_fb_tx_mono_mux_text[] = {
@@ -23672,7 +23676,11 @@ static const int wsa_rx_0_vi_fb_tx_rch_value[] = {
 
 
 static const int mi2s_rx_vi_fb_tx_value[] = {
+#ifdef CONFIG_SND_SOC_TFA9874
+    MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_PRI_MI2S_TX
+#else
 	MSM_BACKEND_DAI_MAX, MSM_BACKEND_DAI_SENARY_MI2S_TX
+#endif
 };
 
 static const int int4_mi2s_rx_vi_fb_tx_mono_ch_value[] = {
@@ -26863,7 +26871,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MultiMedia16 Mixer", "MI2S_TX", "MI2S_TX"},
 	{"MultiMedia1 Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
 	{"MultiMedia2 Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
+	{"MultiMedia5 Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
 	{"MultiMedia6 Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
+	{"MultiMedia10 Mixer", "QUAT_MI2S_TX", "QUAT_MI2S_TX"},
 	{"MultiMedia1 Mixer", "QUIN_MI2S_TX", "QUIN_MI2S_TX"},
 	{"MultiMedia2 Mixer", "QUIN_MI2S_TX", "QUIN_MI2S_TX"},
 	{"MultiMedia1 Mixer", "SENARY_MI2S_TX", "SENARY_MI2S_TX"},
@@ -27253,7 +27263,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MultiMedia9 Mixer", "PRI_SPDIF_TX", "PRI_SPDIF_TX"},
 	{"MultiMedia9 Mixer", "SEC_SPDIF_TX", "SEC_SPDIF_TX"},
 	{"MultiMedia9 Mixer", "AFE_LOOPBACK_TX", "AFE_LOOPBACK_TX"},
-
+	
+    	{"MultiMedia10 Mixer", "VA_CDC_DMA_TX_0", "VA_CDC_DMA_TX_0"},
+	{"MultiMedia10 Mixer", "VA_CDC_DMA_TX_1", "VA_CDC_DMA_TX_1"},
+	{"MultiMedia10 Mixer", "VA_CDC_DMA_TX_2", "VA_CDC_DMA_TX_2"},
 	{"MultiMedia10 Mixer", "TERT_TDM_TX_0", "TERT_TDM_TX_0"},
 	{"MultiMedia10 Mixer", "TERT_TDM_TX_1", "TERT_TDM_TX_1"},
 	{"MultiMedia10 Mixer", "TERT_TDM_TX_2", "TERT_TDM_TX_2"},
@@ -27498,6 +27511,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"MultiMedia16 Mixer", "SEC_SPDIF_TX", "SEC_SPDIF_TX"},
 	{"MultiMedia16 Mixer", "AFE_LOOPBACK_TX", "AFE_LOOPBACK_TX"},
 
+       {"MultiMedia17 Mixer", "VA_CDC_DMA_TX_0", "VA_CDC_DMA_TX_0"},
 	{"MultiMedia17 Mixer", "TX_CDC_DMA_TX_0", "TX_CDC_DMA_TX_0"},
 	{"MultiMedia17 Mixer", "TX_CDC_DMA_TX_1", "TX_CDC_DMA_TX_1"},
 	{"MultiMedia17 Mixer", "TX_CDC_DMA_TX_2", "TX_CDC_DMA_TX_2"},
@@ -28209,6 +28223,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VoiceMMode1_Tx Mixer", "TX_CDC_DMA_TX_3_MMode1", "TX_CDC_DMA_TX_3"},
 	{"VoiceMMode1_Tx Mixer", "TX_CDC_DMA_TX_4_MMode1", "TX_CDC_DMA_TX_4"},
 	{"VoiceMMode1_Tx Mixer", "TX_CDC_DMA_TX_5_MMode1", "TX_CDC_DMA_TX_5"},
+	{"VoiceMMode1_Tx Mixer", "VA_CDC_DMA_TX_0_MMode1", "TX_CDC_DMA_TX_0"},
+	{"VoiceMMode1_Tx Mixer", "VA_CDC_DMA_TX_1_MMode1", "TX_CDC_DMA_TX_1"},
+	{"VoiceMMode1_Tx Mixer", "VA_CDC_DMA_TX_2_MMode1", "TX_CDC_DMA_TX_2"},
 	{"VoiceMMode1_Tx Mixer", "QUAT_MI2S_TX_MMode1", "QUAT_MI2S_TX"},
 	{"VoiceMMode1_Tx Mixer", "QUIN_MI2S_TX_MMode1", "QUIN_MI2S_TX"},
 	{"VoiceMMode1_Tx Mixer", "PRI_TDM_TX_3_MMode1", "PRI_TDM_TX_3"},
@@ -29597,14 +29614,22 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SLIM0_RX_VI_FB_RCH_MUX", "SLIM4_TX", "SLIMBUS_4_TX"},
 	{"WSA_RX_0_VI_FB_LCH_MUX", "WSA_CDC_DMA_TX_0", "WSA_CDC_DMA_TX_0"},
 	{"WSA_RX_0_VI_FB_RCH_MUX", "WSA_CDC_DMA_TX_0", "WSA_CDC_DMA_TX_0"},
+#ifdef CONFIG_SND_SOC_TFA9874
+    {"PRI_MI2S_RX_VI_FB_MUX", "PRI_MI2S_TX", "PRI_MI2S_TX"},//for nxp AMP to Tequila
+#else
 	{"PRI_MI2S_RX_VI_FB_MUX", "SENARY_TX", "SENARY_TX"},
+#endif
 	{"INT4_MI2S_RX_VI_FB_MONO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"INT4_MI2S_RX_VI_FB_STEREO_CH_MUX", "INT5_MI2S_TX", "INT5_MI2S_TX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_LCH_MUX"},
 	{"SLIMBUS_0_RX", NULL, "SLIM0_RX_VI_FB_RCH_MUX"},
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_RX_0_VI_FB_LCH_MUX"},
 	{"WSA_CDC_DMA_RX_0", NULL, "WSA_RX_0_VI_FB_RCH_MUX"},
+#ifdef CONFIG_SND_SOC_TFA9874
+    {"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_VI_FB_MUX"},//for nxp AMP to Tequila
+#else
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_VI_FB_MUX"},
+#endif
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_VI_FB_MONO_CH_MUX"},
 	{"INT4_MI2S_RX", NULL, "INT4_MI2S_RX_VI_FB_STEREO_CH_MUX"},
 	{"PRI_TDM_TX_0", NULL, "BE_IN"},
