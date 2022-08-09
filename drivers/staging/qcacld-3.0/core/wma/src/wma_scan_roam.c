@@ -3512,7 +3512,7 @@ wma_rso_print_trigger_info(struct wmi_roam_trigger_info *data, uint8_t vdev_id)
 
 	wma_get_trigger_detail_str(data, buf);
 	mlme_get_converted_timestamp(data->timestamp, time);
-	WMA_LOGI("%s [ROAM_TRIGGER]: VDEV[%d] %s", time, vdev_id, buf);
+	dp_info_rl("%s [ROAM_TRIGGER]: VDEV[%d] %s", time, vdev_id, buf);
 
 	qdf_mem_free(buf);
 }
@@ -3535,7 +3535,7 @@ wma_log_roam_scan_candidates(struct wmi_roam_candidate_info *ap,
 	char time[TIME_STRING_LEN];
 
 	WMA_LOGD("%40s%40s", LINE_STR, LINE_STR);
-	WMA_LOGI("%13s %16s %8s %4s %4s %5s/%3s %3s/%3s %7s",
+	WMA_LOGD("%13s %16s %8s %4s %4s %5s/%3s %3s/%3s %7s",
 		 "AP BSSID", "TSTAMP", "CH", "TY", "ETP", "RSSI",
 		 "SCR", "CU%", "SCR", "TOT_SCR");
 	WMA_LOGD("%40s%40s", LINE_STR, LINE_STR);
@@ -3545,7 +3545,7 @@ wma_log_roam_scan_candidates(struct wmi_roam_candidate_info *ap,
 
 	for (i = 0; i < num_entries; i++) {
 		mlme_get_converted_timestamp(ap->timestamp, time);
-		WMA_LOGI(QDF_MAC_ADDR_STR " %17s %4d %-4s %4d %3d/%-4d %2d/%-4d %5d",
+		WMA_LOGD(QDF_MAC_ADDR_STR " %17s %4d %-4s %4d %3d/%-4d %2d/%-4d %5d",
 			 QDF_MAC_ADDR_ARRAY(ap->bssid.bytes), time, ap->freq,
 			 ((ap->type == 0) ? "C_AP" :
 			  ((ap->type == 2) ? "R_AP" : "P_AP")),
@@ -3613,7 +3613,7 @@ wma_rso_print_scan_info(struct wmi_roam_scan_data *scan, uint8_t vdev_id,
 			    scan->next_rssi_threshold);
 
 	mlme_get_converted_timestamp(timestamp, time);
-	WMA_LOGI("%s [ROAM_SCAN]: VDEV[%d] Scan_type: %s %s %s",
+	dp_info_rl("%s [ROAM_SCAN]: VDEV[%d] Scan_type: %s %s %s",
 		 time, vdev_id, (scan->type ? "FULL" : "PARTIAL"),
 		 buf1, buf);
 	wma_log_roam_scan_candidates(scan->ap, scan->num_ap);
@@ -3647,7 +3647,7 @@ wma_rso_print_roam_result(struct wmi_roam_result *res,
 			    mlme_get_roam_fail_reason_str(res->fail_reason));
 
 	mlme_get_converted_timestamp(res->timestamp, time);
-	WMA_LOGI("%s [ROAM_RESULT]: VDEV[%d] %s %s",
+	dp_info_rl("%s [ROAM_RESULT]: VDEV[%d] %s %s",
 		 time, vdev_id, (res->status) ? "SUCCESS" : "FAILED", buf);
 
 	qdf_mem_free(buf);
@@ -3699,7 +3699,7 @@ wma_rso_print_11kv_info(struct wmi_neighbor_report_data *neigh_rpt,
 	}
 
 	mlme_get_converted_timestamp(neigh_rpt->req_time, time);
-	WMA_LOGI("%s [%s] VDEV[%d]", time,
+	WMA_LOGD("%s [%s] VDEV[%d]", time,
 		 (type == 1) ? "BTM_QUERY" : "NEIGH_RPT_REQ", vdev_id);
 
 	if (neigh_rpt->resp_time) {
@@ -3750,7 +3750,7 @@ int wma_roam_stats_event_handler(WMA_HANDLE handle, uint8_t *event,
 		num_tlv = MAX_ROAM_SCAN_STATS_TLV;
 	}
 
-	rem_len = WMI_SVC_MSG_MAX_SIZE - sizeof(*fixed_param);
+	rem_len = len - sizeof(*fixed_param);
 	if (rem_len < num_tlv * sizeof(wmi_roam_trigger_reason)) {
 		wma_err_rl("Invalid roam trigger data");
 		goto err;
